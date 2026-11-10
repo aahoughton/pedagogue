@@ -1,4 +1,5 @@
 ---
+
 name: guided-explanation
 description: Use when the user asks to have something explained, walked through, taught, or quizzed, and the topic spans several files or steps ("explain how X works", "how does this codebase handle Y", "walk me through this branch"). Starts a guided tour in the pedagogue app, where a tutor agent uses code panes, diagrams and quizzes in a browser page. Answer in the conversation instead for a single function, file or fact, or when the user asks for a brief or inline answer.
 ---
