@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { decide, type Sandbox } from "./permissions.ts";
 
-const root = mkdtempSync(join(tmpdir(), "pedagogy-perm-test-"));
+const root = mkdtempSync(join(tmpdir(), "pedagogue-perm-test-"));
 const cwd = join(root, "project");
 const scratchDir = join(root, "scratch");
 mkdirSync(join(cwd, "src"), { recursive: true });

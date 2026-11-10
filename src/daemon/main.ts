@@ -9,24 +9,24 @@ try {
 	const loaded = loadEnvFile(process.env);
 	console.log(
 		loaded
-			? `pedagogy: settings from ${loaded}`
-			: `pedagogy: no settings file at ${envFilePath(process.env)}, using the environment`,
+			? `pedagogue: settings from ${loaded}`
+			: `pedagogue: no settings file at ${envFilePath(process.env)}, using the environment`,
 	);
 	config = readConfig(process.env);
 } catch (error) {
 	if (!(error instanceof ConfigError || error instanceof EnvFileError)) {
 		throw error;
 	}
-	console.error(`pedagogy: ${error.message}`);
+	console.error(`pedagogue: ${error.message}`);
 	process.exit(2);
 }
 
 const store = new TourStore(config.dataDir);
 const { records, problems } = await store.loadAll();
 for (const problem of problems) {
-	console.error(`pedagogy: skipped a saved tour: ${problem}`);
+	console.error(`pedagogue: skipped a saved tour: ${problem}`);
 }
-console.log(`pedagogy: ${records.length} saved tours in ${config.dataDir}`);
+console.log(`pedagogue: ${records.length} saved tours in ${config.dataDir}`);
 
 const app = createApp({
 	driver: new ClaudeDriver({ apiKey: config.apiKey, model: config.model }),
@@ -43,13 +43,13 @@ for (const host of config.hosts) {
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : String(error);
 		console.error(
-			`pedagogy: cannot listen on ${host}:${config.port}: ${reason}`,
+			`pedagogue: cannot listen on ${host}:${config.port}: ${reason}`,
 		);
 		process.exit(1);
 	}
-	console.log(`pedagogy: listening on http://${host}:${config.port}`);
+	console.log(`pedagogue: listening on http://${host}:${config.port}`);
 }
-console.log(`pedagogy: tour links use ${config.publicUrl}`);
+console.log(`pedagogue: tour links use ${config.publicUrl}`);
 
 let stopping = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

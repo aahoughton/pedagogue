@@ -1,7 +1,7 @@
 # Running the daemon at login (macOS)
 
 launchd can start the daemon when you log in and restart it if it exits. The
-daemon reads its settings from `~/.config/pedagogy/env` as usual.
+daemon reads its settings from `~/.config/pedagogue/env` as usual.
 
 ## Install
 
@@ -11,7 +11,7 @@ checkout's path and your home directory filled in, then loads it.
 ```sh
 REPO=$(pwd)
 MISE=$(command -v mise)
-PLIST=~/Library/LaunchAgents/dev.pedagogy.daemon.plist
+PLIST=~/Library/LaunchAgents/dev.pedagogue.daemon.plist
 
 cat > "$PLIST" <<PLIST_END
 <?xml version="1.0" encoding="UTF-8"?>
@@ -19,7 +19,7 @@ cat > "$PLIST" <<PLIST_END
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>dev.pedagogy.daemon</string>
+  <string>dev.pedagogue.daemon</string>
   <key>ProgramArguments</key>
   <array>
     <string>$MISE</string>
@@ -37,9 +37,9 @@ cat > "$PLIST" <<PLIST_END
   <key>ThrottleInterval</key>
   <integer>10</integer>
   <key>StandardOutPath</key>
-  <string>$HOME/Library/Logs/pedagogy.log</string>
+  <string>$HOME/Library/Logs/pedagogue.log</string>
   <key>StandardErrorPath</key>
-  <string>$HOME/Library/Logs/pedagogy.log</string>
+  <string>$HOME/Library/Logs/pedagogue.log</string>
 </dict>
 </plist>
 PLIST_END
@@ -53,8 +53,8 @@ your shell's `PATH`, which launchd does not have.
 ## Check
 
 ```sh
-launchctl print gui/$(id -u)/dev.pedagogy.daemon | grep -E "state|last exit"
-tail ~/Library/Logs/pedagogy.log
+launchctl print gui/$(id -u)/dev.pedagogue.daemon | grep -E "state|last exit"
+tail ~/Library/Logs/pedagogue.log
 ```
 
 The log should end with the `listening on` lines.
@@ -62,19 +62,19 @@ The log should end with the `listening on` lines.
 ## After changing code or settings
 
 ```sh
-launchctl kickstart -k gui/$(id -u)/dev.pedagogy.daemon
+launchctl kickstart -k gui/$(id -u)/dev.pedagogue.daemon
 ```
 
 ## Remove
 
 ```sh
-launchctl bootout gui/$(id -u)/dev.pedagogy.daemon
-rm ~/Library/LaunchAgents/dev.pedagogy.daemon.plist
+launchctl bootout gui/$(id -u)/dev.pedagogue.daemon
+rm ~/Library/LaunchAgents/dev.pedagogue.daemon.plist
 ```
 
 ## Things to know
 
-- If `PEDAGOGY_HOST` includes a tailnet address and Tailscale is not up yet at
+- If `PEDAGOGUE_HOST` includes a tailnet address and Tailscale is not up yet at
   login, the daemon exits with "cannot listen" and launchd starts it again
   every 10 seconds until the address exists.
 - A missing or unreadable settings file, or a missing API key, also makes the

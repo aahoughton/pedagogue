@@ -22,15 +22,15 @@ export class ConfigError extends Error {}
  * fills from the env file first (see env-file.ts):
  *
  * - ANTHROPIC_API_KEY (required): the key every tutor runs on.
- * - PEDAGOGY_HOST: comma-separated addresses to listen on. Default 127.0.0.1.
+ * - PEDAGOGUE_HOST: comma-separated addresses to listen on. Default 127.0.0.1.
  *   Add the machine's tailnet address to reach tours from another machine.
- * - PEDAGOGY_PORT: default 4270.
- * - PEDAGOGY_PUBLIC_URL: base URL put in the links handed out for tours.
+ * - PEDAGOGUE_PORT: default 4270.
+ * - PEDAGOGUE_PUBLIC_URL: base URL put in the links handed out for tours.
  *   Default http://<first host>:<port>.
- * - PEDAGOGY_DATA_DIR: default $XDG_DATA_HOME/pedagogy or ~/.local/share/pedagogy.
- * - PEDAGOGY_IDLE_MINUTES: how long a tutor waits for the learner before its
+ * - PEDAGOGUE_DATA_DIR: default $XDG_DATA_HOME/pedagogue or ~/.local/share/pedagogue.
+ * - PEDAGOGUE_IDLE_MINUTES: how long a tutor waits for the learner before its
  *   process is stopped; the next message wakes it. Default 15.
- * - PEDAGOGY_MODEL: model for tutors. Default: the Agent SDK's default.
+ * - PEDAGOGUE_MODEL: model for tutors. Default: the Agent SDK's default.
  */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
 	const apiKey = env.ANTHROPIC_API_KEY;
@@ -39,33 +39,35 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
 			"ANTHROPIC_API_KEY is not set. Tutors run on an API key; put it in the settings file or the environment and start again.",
 		);
 	}
-	const hosts = (env.PEDAGOGY_HOST ?? "127.0.0.1")
+	const hosts = (env.PEDAGOGUE_HOST ?? "127.0.0.1")
 		.split(",")
 		.map((host) => host.trim())
 		.filter(Boolean);
 	if (hosts.length === 0)
-		throw new ConfigError("PEDAGOGY_HOST names no address");
+		throw new ConfigError("PEDAGOGUE_HOST names no address");
 
-	const port = env.PEDAGOGY_PORT ? Number(env.PEDAGOGY_PORT) : DEFAULT_PORT;
+	const port = env.PEDAGOGUE_PORT ? Number(env.PEDAGOGUE_PORT) : DEFAULT_PORT;
 	if (!Number.isInteger(port) || port < 1 || port > 65535) {
-		throw new ConfigError(`PEDAGOGY_PORT is not a port: ${env.PEDAGOGY_PORT}`);
+		throw new ConfigError(
+			`PEDAGOGUE_PORT is not a port: ${env.PEDAGOGUE_PORT}`,
+		);
 	}
 
-	const publicUrl = env.PEDAGOGY_PUBLIC_URL ?? `http://${hosts[0]}:${port}`;
+	const publicUrl = env.PEDAGOGUE_PUBLIC_URL ?? `http://${hosts[0]}:${port}`;
 	if (!URL.canParse(publicUrl)) {
-		throw new ConfigError(`PEDAGOGY_PUBLIC_URL is not a URL: ${publicUrl}`);
+		throw new ConfigError(`PEDAGOGUE_PUBLIC_URL is not a URL: ${publicUrl}`);
 	}
 
 	const dataDir =
-		env.PEDAGOGY_DATA_DIR ??
-		join(env.XDG_DATA_HOME ?? join(homedir(), ".local/share"), "pedagogy");
+		env.PEDAGOGUE_DATA_DIR ??
+		join(env.XDG_DATA_HOME ?? join(homedir(), ".local/share"), "pedagogue");
 
-	const idleMinutes = env.PEDAGOGY_IDLE_MINUTES
-		? Number(env.PEDAGOGY_IDLE_MINUTES)
+	const idleMinutes = env.PEDAGOGUE_IDLE_MINUTES
+		? Number(env.PEDAGOGUE_IDLE_MINUTES)
 		: 15;
 	if (!(idleMinutes > 0)) {
 		throw new ConfigError(
-			`PEDAGOGY_IDLE_MINUTES is not a positive number: ${env.PEDAGOGY_IDLE_MINUTES}`,
+			`PEDAGOGUE_IDLE_MINUTES is not a positive number: ${env.PEDAGOGUE_IDLE_MINUTES}`,
 		);
 	}
 
@@ -76,7 +78,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
 		publicUrl,
 		dataDir,
 		idleMs: idleMinutes * 60_000,
-		model: env.PEDAGOGY_MODEL,
+		model: env.PEDAGOGUE_MODEL,
 	};
 }
 

@@ -25,7 +25,7 @@ function record(id: string, title: string): TourRecord {
 }
 
 test("a burst of changes is saved once, with the latest state", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "pedagogy-store-test-"));
+	const dir = mkdtempSync(join(tmpdir(), "pedagogue-store-test-"));
 	const store = new TourStore(dir, { delayMs: 10 });
 	let title = "first";
 	let reads = 0;
@@ -50,7 +50,7 @@ test("a burst of changes is saved once, with the latest state", async () => {
 });
 
 test("a save after the delay happens without a flush", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "pedagogy-store-test-"));
+	const dir = mkdtempSync(join(tmpdir(), "pedagogue-store-test-"));
 	const store = new TourStore(dir, { delayMs: 5 });
 	store.schedule({ id: "bbbb2222", record: () => record("bbbb2222", "t") });
 	await new Promise((resolve) => setTimeout(resolve, 50));
@@ -58,7 +58,7 @@ test("a save after the delay happens without a flush", async () => {
 });
 
 test("unreadable tours are reported and skipped; bare scratch directories are ignored", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "pedagogy-store-test-"));
+	const dir = mkdtempSync(join(tmpdir(), "pedagogue-store-test-"));
 	const store = new TourStore(dir);
 	store.schedule({ id: "good0001", record: () => record("good0001", "good") });
 	await store.flush();
@@ -82,7 +82,7 @@ test("unreadable tours are reported and skipped; bare scratch directories are ig
 });
 
 test("an empty data directory has no tours", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "pedagogy-store-test-"));
+	const dir = mkdtempSync(join(tmpdir(), "pedagogue-store-test-"));
 	assert.deepEqual(await new TourStore(dir).loadAll(), {
 		records: [],
 		problems: [],

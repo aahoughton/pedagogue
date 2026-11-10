@@ -61,7 +61,7 @@ export class TourStore {
 			await rename(temporary, join(dir, "tour.json"));
 		});
 		const settled = next.catch((error: unknown) => {
-			console.error(`pedagogy: could not save tour ${id}: ${message(error)}`);
+			console.error(`pedagogue: could not save tour ${id}: ${message(error)}`);
 		});
 		this.#writes.set(id, settled);
 		return settled;

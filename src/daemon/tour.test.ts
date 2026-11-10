@@ -12,7 +12,7 @@ async function openTour(): Promise<{
 	events: TourEvent[];
 	cwd: string;
 }> {
-	const root = mkdtempSync(join(tmpdir(), "pedagogy-test-"));
+	const root = mkdtempSync(join(tmpdir(), "pedagogue-test-"));
 	const cwd = join(root, "project");
 	mkdirSync(cwd);
 	writeFileSync(join(cwd, "a.txt"), "one\ntwo\nthree\nfour\nfive\n");
@@ -430,7 +430,7 @@ test("when the conversation cannot be restored a fresh tutor gets a recap and th
 });
 
 test("an idle tutor is put to sleep and the next message wakes it", async () => {
-	const root = mkdtempSync(join(tmpdir(), "pedagogy-idle-test-"));
+	const root = mkdtempSync(join(tmpdir(), "pedagogue-idle-test-"));
 	const driver = new FakeDriver();
 	const tour = await Tour.open({
 		id: "t1",
@@ -485,7 +485,7 @@ test("a tutor that cannot start leaves a notice and the tour usable", async () =
 });
 
 test("every change asks for a save, and closing ends the tour for good", async () => {
-	const root = mkdtempSync(join(tmpdir(), "pedagogy-save-test-"));
+	const root = mkdtempSync(join(tmpdir(), "pedagogue-save-test-"));
 	const driver = new FakeDriver();
 	let saves = 0;
 	const tour = await Tour.open({

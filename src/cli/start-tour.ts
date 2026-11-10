@@ -3,12 +3,12 @@ import { resolve } from "node:path";
 export const USAGE = `usage: tour [--cwd <dir>] <brief>
        tour [--cwd <dir>] -        (read the brief from stdin)
 
-Starts a tour on the pedagogy daemon and prints its link.
+Starts a tour on the pedagogue daemon and prints its link.
 
   --cwd <dir>   directory the tutor explains (default: current directory)
 
-The daemon is reached at $PEDAGOGY_URL (default http://127.0.0.1:4270), which
-can also be set in ~/.config/pedagogy/env.`;
+The daemon is reached at $PEDAGOGUE_URL (default http://127.0.0.1:4270), which
+can also be set in ~/.config/pedagogue/env.`;
 
 export class UsageError extends Error {}
 
@@ -53,7 +53,7 @@ export async function startTour(
 		});
 	} catch {
 		throw new Error(
-			`no pedagogy daemon at ${daemonUrl}. Start it (pnpm start in the pedagogy repo) or set PEDAGOGY_URL.`,
+			`no pedagogue daemon at ${daemonUrl}. Start it (pnpm start in the pedagogue repo) or set PEDAGOGUE_URL.`,
 		);
 	}
 	const body = (await response.json()) as { url?: string; error?: string };

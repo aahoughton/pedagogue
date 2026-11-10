@@ -4,25 +4,25 @@ import { join } from "node:path";
 
 export class EnvFileError extends Error {}
 
-/** $PEDAGOGY_ENV_FILE, or pedagogy/env under $XDG_CONFIG_HOME (default ~/.config). */
+/** $PEDAGOGUE_ENV_FILE, or pedagogue/env under $XDG_CONFIG_HOME (default ~/.config). */
 export function envFilePath(env: NodeJS.ProcessEnv): string {
 	return (
-		env.PEDAGOGY_ENV_FILE ??
-		join(env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "pedagogy", "env")
+		env.PEDAGOGUE_ENV_FILE ??
+		join(env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "pedagogue", "env")
 	);
 }
 
 /**
  * Loads KEY=value settings from the env file into `process.env`. Variables that
  * are already set keep their value. Returns the path loaded, or undefined when
- * the default file does not exist. A file named by PEDAGOGY_ENV_FILE must exist.
+ * the default file does not exist. A file named by PEDAGOGUE_ENV_FILE must exist.
  * The file can hold an API key, so one that other users can read is refused.
  */
 export function loadEnvFile(env: NodeJS.ProcessEnv): string | undefined {
 	const path = envFilePath(env);
 	if (!existsSync(path)) {
-		if (env.PEDAGOGY_ENV_FILE) {
-			throw new EnvFileError(`PEDAGOGY_ENV_FILE does not exist: ${path}`);
+		if (env.PEDAGOGUE_ENV_FILE) {
+			throw new EnvFileError(`PEDAGOGUE_ENV_FILE does not exist: ${path}`);
 		}
 		return undefined;
 	}

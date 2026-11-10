@@ -8,7 +8,7 @@ import { FakeDriver, type FakeSession } from "./fake-driver.ts";
 import { type App, createApp, listen } from "./server.ts";
 import { TourStore } from "./store.ts";
 
-const root = mkdtempSync(join(tmpdir(), "pedagogy-server-test-"));
+const root = mkdtempSync(join(tmpdir(), "pedagogue-server-test-"));
 writeFileSync(join(root, "a.txt"), "one\ntwo\n");
 const driver = new FakeDriver();
 const app: App = createApp({
@@ -201,7 +201,7 @@ test("only the listed assets are served", async () => {
 });
 
 test("tours come back after a restart, dormant, and wake on input", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "pedagogy-restart-test-"));
+	const dir = mkdtempSync(join(tmpdir(), "pedagogue-restart-test-"));
 	writeFileSync(join(dir, "a.txt"), "one\ntwo\n");
 	const firstDriver = new FakeDriver();
 	const first = createApp({

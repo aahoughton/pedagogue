@@ -27,7 +27,7 @@ test("parseArgs rejects a missing brief, extra words and unknown options", () =>
 });
 
 test("startTour returns the daemon's link and passes on its errors", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "pedagogy-cli-test-"));
+	const dir = mkdtempSync(join(tmpdir(), "pedagogue-cli-test-"));
 	const driver = new FakeDriver();
 	const app = createApp({
 		driver,
@@ -55,6 +55,6 @@ test("startTour returns the daemon's link and passes on its errors", async () =>
 test("startTour says how to start the daemon when none is listening", async () => {
 	await assert.rejects(
 		startTour("http://127.0.0.1:1", { cwd: "/", brief: "x" }),
-		/no pedagogy daemon at http:\/\/127\.0\.0\.1:1/,
+		/no pedagogue daemon at http:\/\/127\.0\.0\.1:1/,
 	);
 });

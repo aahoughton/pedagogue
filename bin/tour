@@ -19,7 +19,7 @@ try {
 	const request = parseArgs(process.argv.slice(2), process.cwd());
 	if (request.brief === "-") request.brief = await text(process.stdin);
 	loadEnvFile(process.env);
-	const daemonUrl = process.env.PEDAGOGY_URL ?? "http://127.0.0.1:4270";
+	const daemonUrl = process.env.PEDAGOGUE_URL ?? "http://127.0.0.1:4270";
 	console.log(await startTour(daemonUrl, request));
 } catch (error) {
 	if (error instanceof EnvFileError) {
