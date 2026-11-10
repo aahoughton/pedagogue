@@ -16,6 +16,7 @@ const app: App = createApp({
 	store: new TourStore(join(root, "data")),
 	publicUrl: "http://desk.example:4270",
 	allowedHosts: ["127.0.0.1"],
+	build: { version: "1.2.3", sha: "abc1234", dirty: false },
 });
 const { server, port } = await listen(app, "127.0.0.1", 0);
 const base = `http://127.0.0.1:${port}`;
@@ -70,6 +71,15 @@ test("starting a tour returns a link on the public URL and lists the tour", asyn
 	};
 	assert.ok(list.tours.some((t) => t.id === body.id && t.status === "working"));
 	assert.equal((await fetch(`${base}/tours/${body.id}`)).status, 200);
+});
+
+test("the daemon reports its build", async () => {
+	const response = await fetch(`${base}/about`);
+	assert.deepEqual(await response.json(), {
+		version: "1.2.3",
+		sha: "abc1234",
+		dirty: false,
+	});
 });
 
 test("a tour cannot start in a missing directory or on a file", async () => {
@@ -209,6 +219,7 @@ test("tours come back after a restart, dormant, and wake on input", async () => 
 		store: new TourStore(join(dir, "data")),
 		publicUrl: "http://desk.example:4270",
 		allowedHosts: ["127.0.0.1"],
+		build: { version: "1.2.3", sha: "abc1234", dirty: false },
 	});
 	const one = await listen(first, "127.0.0.1", 0);
 	const created = await fetch(`http://127.0.0.1:${one.port}/tours`, {
@@ -233,6 +244,7 @@ test("tours come back after a restart, dormant, and wake on input", async () => 
 		records,
 		publicUrl: "http://desk.example:4270",
 		allowedHosts: ["127.0.0.1"],
+		build: { version: "1.2.3", sha: "abc1234", dirty: false },
 	});
 	const two = await listen(second, "127.0.0.1", 0);
 	after(async () => {

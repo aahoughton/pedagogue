@@ -2,6 +2,8 @@ import hljs from "/vendor/highlight.js";
 import { marked } from "/vendor/marked.js";
 import DOMPurify from "/vendor/purify.js";
 import {
+	ago,
+	buildLabel,
 	compressLines,
 	languageFor,
 	paneForPath,
@@ -17,6 +19,10 @@ let state;
 /** Lines the learner has marked: { paneId, lines: Set<number>, anchor: number }. */
 let selection;
 let socket;
+/** When the tour started, as an ISO time. */
+let createdAt;
+/** The local day of the last message drawn, so a change of day gets a divider. */
+let lastDay;
 
 function connect() {
 	const scheme = location.protocol === "https:" ? "wss" : "ws";
@@ -44,10 +50,14 @@ function apply(event) {
 	switch (event.type) {
 		case "snapshot":
 			state = event.state;
+			createdAt = event.createdAt;
 			selection = undefined;
-			document.title = state.title;
+			lastDay = undefined;
+			document.title = `${state.title} - pedagogue`;
 			$("title").textContent = state.title;
-			$("title").title = state.cwd;
+			$("title").title = `${state.title}\n${state.cwd}`;
+			$("cwd").textContent = state.cwd;
+			$("cwd").title = state.cwd;
 			$("transcript").replaceChildren();
 			for (const pane of [...document.querySelectorAll("#panes > .pane")])
 				pane.remove();
@@ -58,6 +68,7 @@ function apply(event) {
 			renderSelection();
 			setStatus(state.status, state.error);
 			setActivity(state.activity);
+			renderTimes();
 			break;
 		case "pane": {
 			const index = state.panes.findIndex((p) => p.id === event.pane.id);
@@ -90,6 +101,7 @@ function apply(event) {
 			if (index === -1) state.transcript.push(event.item);
 			else state.transcript[index] = event.item;
 			renderItem(event.item);
+			renderTimes();
 			break;
 		}
 		case "item_delta": {
@@ -112,6 +124,37 @@ function apply(event) {
 			break;
 	}
 }
+
+// Titlebar
+
+const DATE_TIME = new Intl.DateTimeFormat(undefined, {
+	dateStyle: "medium",
+	timeStyle: "short",
+});
+const CLOCK = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
+const DAY = new Intl.DateTimeFormat(undefined, {
+	weekday: "short",
+	month: "short",
+	day: "numeric",
+	year: "numeric",
+});
+
+/** Says when the tour started and how long ago its newest message arrived. */
+function renderTimes() {
+	if (!state) return;
+	const parts = [`started ${DATE_TIME.format(new Date(createdAt))}`];
+	const last = state.transcript.findLast((item) => item.at)?.at;
+	if (last) parts.push(`last message ${ago(last, Date.now())}`);
+	$("times").textContent = parts.join(" \u00b7 ");
+	$("times").title = last ? DATE_TIME.format(new Date(last)) : "";
+}
+setInterval(renderTimes, 30_000);
+
+fetch("/about")
+	.then((response) => response.json())
+	.then((build) => {
+		$("build").textContent = buildLabel(build);
+	});
 
 // Status and outline
 
@@ -462,8 +505,27 @@ function renderItem(item) {
 	} else {
 		element.append(...quizView(item));
 	}
+	if (item.at) {
+		const when = new Date(item.at);
+		const at = document.createElement("time");
+		at.className = "at";
+		at.dateTime = item.at;
+		at.textContent = CLOCK.format(when);
+		at.title = DATE_TIME.format(when);
+		element.append(at);
+	}
 	const transcript = $("transcript");
 	const existing = transcript.querySelector(`.item[data-id="${item.id}"]`);
+	if (!existing && item.at) {
+		const day = DAY.format(new Date(item.at));
+		if (day !== lastDay) {
+			lastDay = day;
+			const divider = document.createElement("div");
+			divider.className = "day";
+			divider.textContent = day;
+			keepAtEnd(() => transcript.append(divider));
+		}
+	}
 	if (existing) {
 		keepAtEnd(() => existing.replaceWith(element));
 	} else if (item.kind === "learner") {

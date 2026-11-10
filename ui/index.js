@@ -1,3 +1,5 @@
+import { buildLabel } from "./lines.js";
+
 const list = document.getElementById("tours");
 const form = document.getElementById("start");
 const errorBox = document.getElementById("error");
@@ -48,4 +50,9 @@ form.addEventListener("submit", async (event) => {
 	location.href = `/tours/${body.id}`;
 });
 
+fetch("/about")
+	.then((response) => response.json())
+	.then((build) => {
+		document.getElementById("build").textContent = buildLabel(build);
+	});
 refresh();

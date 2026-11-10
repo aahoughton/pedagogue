@@ -9,16 +9,19 @@
 <link rel="stylesheet" href="/assets/style.css">
 </head>
 <body class="tour">
+<header id="titlebar">
+  <a href="/" class="home" title="All tours">&larr;</a>
+  <span id="build">pedagogue</span>
+  <h1 id="title">Tour</h1>
+  <span id="cwd"></span>
+  <span id="times"></span>
+  <span id="status" class="status"></span>
+</header>
 <main id="stage">
   <nav id="tabs" aria-label="Panes"></nav>
   <div id="panes"><p class="empty" id="no-panes">The tutor is reading. Panes appear here.</p></div>
 </main>
 <aside id="side">
-  <header>
-    <a href="/" class="home" title="All tours">&larr;</a>
-    <h1 id="title">Tour</h1>
-    <span id="status" class="status"></span>
-  </header>
   <ol id="outline" hidden></ol>
   <div id="transcript" aria-live="polite"></div>
   <div id="working" hidden><span class="dots"><i></i><i></i><i></i></span><span id="activity"></span></div>

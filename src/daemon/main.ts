@@ -1,7 +1,8 @@
 import { EnvFileError, envFilePath, loadEnvFile } from "../env-file.ts";
+import { readBuild } from "./build.ts";
 import { ClaudeDriver } from "./claude-driver.ts";
 import { allowedHosts, ConfigError, readConfig } from "./config.ts";
-import { createApp, listen } from "./server.ts";
+import { createApp, listen, ROOT } from "./server.ts";
 import { TourStore } from "./store.ts";
 
 let config: ReturnType<typeof readConfig>;
@@ -35,6 +36,7 @@ const app = createApp({
 	idleMs: config.idleMs,
 	publicUrl: config.publicUrl,
 	allowedHosts: allowedHosts(config),
+	build: readBuild(ROOT),
 });
 
 for (const host of config.hosts) {

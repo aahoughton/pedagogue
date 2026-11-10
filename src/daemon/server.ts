@@ -10,11 +10,12 @@ import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { WebSocketServer } from "ws";
 import { z } from "zod";
+import type { Build } from "./build.ts";
 import type { AgentDriver } from "./driver.ts";
 import type { TourStore } from "./store.ts";
 import { InputError, Tour, type TourRecord } from "./tour.ts";
 
-const ROOT = resolve(import.meta.dirname, "../..");
+export const ROOT = resolve(import.meta.dirname, "../..");
 const UI_DIR = join(ROOT, "ui");
 
 /** Files the browser may load, by URL path. Nothing else on disk is served. */
@@ -102,6 +103,8 @@ export interface AppOptions {
 	 * this machine from reaching the daemon.
 	 */
 	allowedHosts: string[];
+	/** The running daemon's build, shown in the browser's titlebar. */
+	build: Build;
 }
 
 export interface App {
@@ -217,6 +220,9 @@ export function createApp(options: AppOptions): App {
 				throw new HttpError(404, `not found: ${pathname}`);
 			}
 			return sendFile(response, file, "text/javascript");
+		}
+		if (pathname === "/about" && method === "GET") {
+			return sendJson(response, 200, options.build);
 		}
 		if (pathname === "/tours" && method === "GET") {
 			return sendJson(response, 200, {

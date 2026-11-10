@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+	ago,
+	buildLabel,
 	compressLines,
 	languageFor,
 	paneForPath,
@@ -77,4 +79,25 @@ test("paneForPath prefers an exact path and accepts an unambiguous suffix", () =
 	assert.equal(paneForPath(panes, "util.go"), undefined);
 	assert.equal(paneForPath(panes, "a/util.go"), panes[1]);
 	assert.equal(paneForPath(panes, "missing.go"), undefined);
+});
+
+test("buildLabel names the version, the commit and uncommitted changes", () => {
+	assert.equal(buildLabel({ version: "0.9.0" }), "pedagogue 0.9.0");
+	assert.equal(
+		buildLabel({ version: "0.9.0", sha: "8b9f67b", dirty: false }),
+		"pedagogue 0.9.0 (8b9f67b)",
+	);
+	assert.equal(
+		buildLabel({ version: "0.9.0", sha: "8b9f67b", dirty: true }),
+		"pedagogue 0.9.0 (8b9f67b*)",
+	);
+});
+
+test("ago rounds down to minutes, hours, then days", () => {
+	const now = Date.parse("2026-11-10T12:00:00Z");
+	assert.equal(ago("2026-11-10T11:59:30Z", now), "just now");
+	assert.equal(ago("2026-11-10T12:00:05Z", now), "just now");
+	assert.equal(ago("2026-11-10T11:48:00Z", now), "12m ago");
+	assert.equal(ago("2026-11-10T09:01:00Z", now), "2h ago");
+	assert.equal(ago("2026-11-08T11:00:00Z", now), "2d ago");
 });

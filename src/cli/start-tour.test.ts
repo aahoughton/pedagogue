@@ -34,6 +34,7 @@ test("startTour returns the daemon's link and passes on its errors", async () =>
 		store: new TourStore(join(dir, "data")),
 		publicUrl: "http://desk.example:4270",
 		allowedHosts: ["127.0.0.1"],
+		build: { version: "0.0.0" },
 	});
 	const { server, port } = await listen(app, "127.0.0.1", 0);
 	after(() => {

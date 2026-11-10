@@ -113,3 +113,22 @@ export function paneForPath(panes, path) {
 	const suffix = code.filter((pane) => pane.path.endsWith(`/${path}`));
 	return suffix.length === 1 ? suffix[0] : undefined;
 }
+
+/**
+ * The daemon's name for the titlebar, from what GET /about returns:
+ * "pedagogue 0.9.0 (8b9f67b)", with "*" after a commit that had uncommitted
+ * changes, and no parentheses when the daemon is not a git checkout.
+ */
+export function buildLabel(build) {
+	const commit = build.sha ? ` (${build.sha}${build.dirty ? "*" : ""})` : "";
+	return `pedagogue ${build.version}${commit}`;
+}
+
+/** How long before `now` (milliseconds) an ISO time was: "just now", "5m ago", "3h ago", "2d ago". */
+export function ago(iso, now) {
+	const minutes = Math.floor((now - Date.parse(iso)) / 60_000);
+	if (minutes < 1) return "just now";
+	if (minutes < 60) return `${minutes}m ago`;
+	if (minutes < 60 * 24) return `${Math.floor(minutes / 60)}h ago`;
+	return `${Math.floor(minutes / (60 * 24))}d ago`;
+}
