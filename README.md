@@ -2,7 +2,6 @@
 
 Ask a model to explain something and get a page where a tutor walks you through
 it: code panes with highlights, questions about the lines you select, quizzes.
-[INTENT.md](INTENT.md) has the goal.
 
 ## Run
 
