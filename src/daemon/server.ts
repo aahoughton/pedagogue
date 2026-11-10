@@ -11,7 +11,8 @@ import { join, resolve } from "node:path";
 import { WebSocketServer } from "ws";
 import { z } from "zod";
 import type { AgentDriver } from "./driver.ts";
-import { InputError, Tour } from "./tour.ts";
+import type { TourStore } from "./store.ts";
+import { InputError, Tour, type TourRecord } from "./tour.ts";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const UI_DIR = join(ROOT, "ui");
@@ -87,8 +88,12 @@ const LearnerInput = z.discriminatedUnion("type", [
 
 export interface AppOptions {
 	driver: AgentDriver;
-	/** Where per-tour scratch directories are created. */
-	dataDir: string;
+	/** Where tours are saved and where their scratch directories live. */
+	store: TourStore;
+	/** Saved tours to bring back as dormant. */
+	records?: TourRecord[];
+	/** How long a tutor may wait for the learner before its process is stopped. */
+	idleMs?: number;
 	/** Base URL a browser on another machine uses to reach the daemon. */
 	publicUrl: string;
 	/**
@@ -105,7 +110,11 @@ export interface App {
 	/** Attaches WebSocket handling to a listening server. */
 	attach(server: Server): void;
 	tours: ReadonlyMap<string, Tour>;
-	close(): void;
+	/**
+	 * Stops every tutor and saves every tour. Tours keep their state and wake
+	 * again after a restart.
+	 */
+	close(): Promise<void>;
 }
 
 class HttpError extends Error {
@@ -118,6 +127,14 @@ class HttpError extends Error {
 
 export function createApp(options: AppOptions): App {
 	const tours = new Map<string, Tour>();
+	const settings = {
+		driver: options.driver,
+		idleMs: options.idleMs,
+		onChange: (tour: Tour) => options.store.schedule(tour),
+	};
+	for (const record of options.records ?? []) {
+		tours.set(record.state.id, Tour.restore(record, settings));
+	}
 	const sockets = new WebSocketServer({ noServer: true });
 	const allowedHosts = new Set(
 		options.allowedHosts.map((h) => h.toLowerCase()),
@@ -155,16 +172,17 @@ export function createApp(options: AppOptions): App {
 			throw new HttpError(400, `not a directory: ${cwd}`);
 
 		const id = randomUUID().slice(0, 8);
-		const scratchDir = join(options.dataDir, "tours", id, "scratch");
+		const scratchDir = options.store.scratchDir(id);
 		await mkdir(scratchDir, { recursive: true });
 		const tour = await Tour.open({
 			id,
 			cwd,
 			scratchDir,
 			brief: parsed.data.brief,
-			driver: options.driver,
+			...settings,
 		});
 		tours.set(id, tour);
+		options.store.schedule(tour);
 		return { id, url: new URL(`/tours/${id}`, options.publicUrl).href };
 	}
 
@@ -195,10 +213,12 @@ export function createApp(options: AppOptions): App {
 		}
 		if (pathname === "/tours" && method === "GET") {
 			return sendJson(response, 200, {
-				tours: [...tours.values()].map((tour) => {
-					const { id, cwd, title, status } = tour.state;
-					return { id, cwd, title, status };
-				}),
+				tours: [...tours.values()]
+					.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+					.map((tour) => {
+						const { id, cwd, title, status } = tour.state;
+						return { id, cwd, title, status, updatedAt: tour.updatedAt };
+					}),
 			});
 		}
 		if (pathname === "/tours" && method === "POST") {
@@ -267,9 +287,10 @@ export function createApp(options: AppOptions): App {
 				});
 			});
 		},
-		close() {
-			for (const tour of tours.values()) tour.close();
+		async close() {
+			for (const tour of tours.values()) tour.sleep();
 			sockets.close();
+			await options.store.flush();
 		},
 	};
 }

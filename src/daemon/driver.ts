@@ -35,6 +35,11 @@ export type AgentEvent =
 
 export interface AgentSession {
 	/**
+	 * Identifies this conversation to the driver that created it. Passing it to
+	 * `open` later continues the conversation, including from a new process.
+	 */
+	readonly resumeToken: string;
+	/**
 	 * Queue a learner message. It starts a turn when the agent is idle and is
 	 * taken up after the current turn otherwise.
 	 */
@@ -54,6 +59,11 @@ export interface AgentStartOptions {
 	scratchDir: string;
 	systemPrompt: string;
 	tools: ToolSpec[];
+	/**
+	 * Continue the conversation a previous session reported. If it cannot be
+	 * restored, the session ends with a `closed` event carrying the error.
+	 */
+	resumeToken?: string;
 }
 
 export interface AgentDriver {

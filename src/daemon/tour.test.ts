@@ -194,7 +194,7 @@ test("a failed turn tells the learner and leaves the tour usable", async () => {
 		error: "error_max_turns",
 	});
 	const item = tour.state.transcript.at(-1);
-	assert.match(item?.kind === "tutor" ? item.text : "", /error_max_turns/);
+	assert.match(item?.kind === "notice" ? item.text : "", /error_max_turns/);
 	assert.equal(tour.state.status, "waiting");
 	tour.input({ type: "message", text: "go on" });
 	assert.equal(agent.received.at(-1), "go on");
@@ -346,4 +346,157 @@ test("a message sent instead of an answer skips the open question", async () => 
 		/skipped/,
 	);
 	await agent.call("ask_quiz", { question: "Another?" });
+});
+
+async function tick(): Promise<void> {
+	await new Promise((resolve) => setImmediate(resolve));
+}
+
+test("a restored tour is dormant and wakes its tutor with the saved conversation", async () => {
+	const { tour, agent } = await openTour();
+	await agent.call("show_code", { path: "a.txt" });
+	await agent.emit({ type: "text_delta", id: "m:0", text: "Half" });
+	const record = JSON.parse(JSON.stringify(tour.record()));
+	assert.equal(record.resumeToken, agent.resumeToken);
+
+	const driver = new FakeDriver();
+	const restored = Tour.restore(record, { driver });
+	assert.equal(restored.awake, false);
+	assert.equal(driver.sessions.length, 0);
+	assert.equal(restored.state.status, "waiting");
+	assert.deepEqual(restored.state.transcript, [
+		{ id: "t1", kind: "tutor", text: "Half" },
+	]);
+	assert.equal(restored.state.panes.length, 1);
+
+	restored.input({ type: "message", text: "where were we?" });
+	await tick();
+	const woken = driver.sessions[0] as FakeSession;
+	assert.equal(woken.options.resumeToken, agent.resumeToken);
+	assert.deepEqual(woken.received, ["where were we?"]);
+	assert.equal(restored.state.transcript.at(-1)?.id, "t2");
+
+	await woken.call("show_code", {
+		path: "a.txt",
+		highlights: [{ start: 1, end: 1 }],
+	});
+	await woken.emit({ type: "turn_end", status: "completed" });
+	assert.equal(restored.state.status, "waiting");
+});
+
+test("when the conversation cannot be restored a fresh tutor gets a recap and the message", async () => {
+	const { tour, agent } = await openTour();
+	await agent.call("set_outline", { steps: ["One", "Two"], current: 2 });
+	await agent.call("show_code", {
+		path: "a.txt",
+		highlights: [{ start: 2, end: 3 }],
+	});
+	await agent.emit({ type: "text", text: "Look at line two." });
+	await agent.call("ask_quiz", { question: "Why?" });
+	await agent.emit({ type: "turn_end", status: "completed" });
+
+	const driver = new FakeDriver();
+	const restored = Tour.restore(tour.record(), { driver });
+	restored.input({ type: "message", text: "go on" });
+	await tick();
+	const stale = driver.sessions[0] as FakeSession;
+	await stale.emit({ type: "closed", error: "No conversation found" });
+	await tick();
+
+	assert.equal(stale.closed, true);
+	const fresh = driver.sessions[1] as FakeSession;
+	assert.equal(fresh.options.resumeToken, undefined);
+	assert.equal(fresh.received.length, 1);
+	const message = fresh.received[0] as string;
+	assert.match(
+		message,
+		/<original_brief>\nExplain a\.txt\nmore detail\n<\/original_brief>/,
+	);
+	assert.match(message, /2\. Two \(in progress\)/);
+	assert.match(message, /code:a\.txt \(a\.txt, highlights 2-3\) \[in front\]/);
+	assert.match(message, /Tutor: Look at line two\./);
+	assert.match(message, /Tutor asked: Why\? \(skipped\)/);
+	assert.match(message, /<quiz_skipped question="Why\?" \/>\ngo on$/);
+	assert.ok(restored.state.transcript.some((i) => i.kind === "notice"));
+	assert.equal(restored.record().resumeToken, fresh.resumeToken);
+
+	// The fresh tutor failing is an ordinary failure, not another restart.
+	await fresh.emit({ type: "turn_end", status: "failed", error: "boom" });
+	assert.equal(driver.sessions.length, 2);
+	assert.equal(restored.state.status, "waiting");
+});
+
+test("an idle tutor is put to sleep and the next message wakes it", async () => {
+	const root = mkdtempSync(join(tmpdir(), "pedagogy-idle-test-"));
+	const driver = new FakeDriver();
+	const tour = await Tour.open({
+		id: "t1",
+		cwd: root,
+		scratchDir: join(root, "scratch"),
+		brief: "x",
+		driver,
+		idleMs: 20,
+	});
+	const first = driver.sessions[0] as FakeSession;
+	await first.emit({ type: "turn_end", status: "completed" });
+	assert.equal(tour.awake, true);
+	await new Promise((resolve) => setTimeout(resolve, 60));
+	assert.equal(tour.awake, false);
+	assert.equal(first.closed, true);
+	assert.equal(tour.state.status, "waiting");
+
+	tour.input({ type: "message", text: "back" });
+	await tick();
+	assert.equal(driver.sessions[1]?.options.resumeToken, first.resumeToken);
+	assert.deepEqual(driver.sessions[1]?.received, ["back"]);
+	tour.close();
+});
+
+test("a tutor that cannot start leaves a notice and the tour usable", async () => {
+	const { tour } = await openTour();
+	let fail = true;
+	const driver = new FakeDriver();
+	const flaky = {
+		open: async (options: Parameters<FakeDriver["open"]>[0]) => {
+			if (fail) throw new Error("spawn failed");
+			return driver.open(options);
+		},
+	};
+	const restored = Tour.restore(tour.record(), { driver: flaky });
+	restored.input({ type: "message", text: "hello" });
+	await tick();
+	const notice = restored.state.transcript.at(-1);
+	assert.match(
+		notice?.kind === "notice" ? notice.text : "",
+		/could not start: spawn failed/,
+	);
+	assert.equal(restored.state.status, "waiting");
+
+	fail = false;
+	restored.input({ type: "message", text: "hello again" });
+	await tick();
+	assert.deepEqual(driver.sessions[0]?.received, ["hello again"]);
+});
+
+test("every change asks for a save, and closing ends the tour for good", async () => {
+	const root = mkdtempSync(join(tmpdir(), "pedagogy-save-test-"));
+	const driver = new FakeDriver();
+	let saves = 0;
+	const tour = await Tour.open({
+		id: "t1",
+		cwd: root,
+		scratchDir: join(root, "scratch"),
+		brief: "x",
+		driver,
+		onChange: () => saves++,
+	});
+	const before = saves;
+	await (driver.sessions[0] as FakeSession).call("set_outline", {
+		steps: ["a"],
+	});
+	assert.ok(saves > before);
+	tour.close();
+	const restored = Tour.restore(tour.record(), { driver });
+	assert.equal(restored.state.status, "closed");
+	assert.throws(() => restored.input({ type: "message", text: "hi" }), /ended/);
 });

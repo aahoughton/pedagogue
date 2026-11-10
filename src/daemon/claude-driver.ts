@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import {
 	type CanUseTool,
@@ -37,6 +38,7 @@ export class ClaudeDriver implements AgentDriver {
 		const input = new Channel<SDKUserMessage>();
 		const events = new Channel<AgentEvent>();
 		const scratchDir = resolve(options.scratchDir);
+		const sessionId = options.resumeToken ?? randomUUID();
 
 		const server = createSdkMcpServer({
 			name: TOOL_SERVER,
@@ -73,6 +75,9 @@ export class ClaudeDriver implements AgentDriver {
 			prompt: input,
 			options: {
 				cwd: options.cwd,
+				...(options.resumeToken
+					? { resume: options.resumeToken }
+					: { sessionId }),
 				additionalDirectories: [scratchDir],
 				systemPrompt: options.systemPrompt,
 				model: this.#options.model,
@@ -179,6 +184,7 @@ export class ClaudeDriver implements AgentDriver {
 		})();
 
 		return {
+			resumeToken: sessionId,
 			send(text) {
 				input.push({
 					type: "user",

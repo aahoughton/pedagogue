@@ -84,8 +84,12 @@ body.index label {
 	display: block;
 	margin: 12px 0;
 }
+body.index ul {
+	padding-left: 0;
+	list-style: none;
+}
 body.index li {
-	margin: 6px 0;
+	margin: 12px 0;
 }
 body.index .meta {
 	color: var(--muted);

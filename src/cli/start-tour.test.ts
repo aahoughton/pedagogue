@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 import { FakeDriver } from "../daemon/fake-driver.ts";
 import { createApp, listen } from "../daemon/server.ts";
+import { TourStore } from "../daemon/store.ts";
 import { parseArgs, startTour, UsageError } from "./start-tour.ts";
 
 test("parseArgs defaults to the current directory and resolves --cwd against it", () => {
@@ -30,13 +31,13 @@ test("startTour returns the daemon's link and passes on its errors", async () =>
 	const driver = new FakeDriver();
 	const app = createApp({
 		driver,
-		dataDir: join(dir, "data"),
+		store: new TourStore(join(dir, "data")),
 		publicUrl: "http://desk.example:4270",
 		allowedHosts: ["127.0.0.1"],
 	});
 	const { server, port } = await listen(app, "127.0.0.1", 0);
 	after(() => {
-		app.close();
+		void app.close();
 		server.close();
 	});
 	const daemon = `http://127.0.0.1:${port}`;

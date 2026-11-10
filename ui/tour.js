@@ -457,6 +457,8 @@ function renderItem(item) {
 			element.append(sel);
 		}
 		element.append(item.text);
+	} else if (item.kind === "notice") {
+		element.textContent = item.text;
 	} else {
 		element.append(...quizView(item));
 	}

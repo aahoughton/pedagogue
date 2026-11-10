@@ -23,13 +23,16 @@ export class FakeDriver implements AgentDriver {
 
 export class FakeSession implements AgentSession {
 	readonly options: AgentStartOptions;
+	readonly resumeToken: string;
 	readonly received: string[] = [];
 	readonly events = new Channel<AgentEvent>();
+	static count = 0;
 	interrupts = 0;
 	closed = false;
 
 	constructor(options: AgentStartOptions) {
 		this.options = options;
+		this.resumeToken = options.resumeToken ?? `fake-${++FakeSession.count}`;
 	}
 
 	send(text: string): void {

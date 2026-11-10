@@ -6,20 +6,21 @@ import { after, test } from "node:test";
 import WebSocket from "ws";
 import { FakeDriver, type FakeSession } from "./fake-driver.ts";
 import { type App, createApp, listen } from "./server.ts";
+import { TourStore } from "./store.ts";
 
 const root = mkdtempSync(join(tmpdir(), "pedagogy-server-test-"));
 writeFileSync(join(root, "a.txt"), "one\ntwo\n");
 const driver = new FakeDriver();
 const app: App = createApp({
 	driver,
-	dataDir: join(root, "data"),
+	store: new TourStore(join(root, "data")),
 	publicUrl: "http://desk.example:4270",
 	allowedHosts: ["127.0.0.1"],
 });
 const { server, port } = await listen(app, "127.0.0.1", 0);
 const base = `http://127.0.0.1:${port}`;
 after(() => {
-	app.close();
+	void app.close();
 	server.close();
 });
 
@@ -197,4 +198,74 @@ test("only the listed assets are served", async () => {
 		).status,
 		404,
 	);
+});
+
+test("tours come back after a restart, dormant, and wake on input", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "pedagogy-restart-test-"));
+	writeFileSync(join(dir, "a.txt"), "one\ntwo\n");
+	const firstDriver = new FakeDriver();
+	const first = createApp({
+		driver: firstDriver,
+		store: new TourStore(join(dir, "data")),
+		publicUrl: "http://desk.example:4270",
+		allowedHosts: ["127.0.0.1"],
+	});
+	const one = await listen(first, "127.0.0.1", 0);
+	const created = await fetch(`http://127.0.0.1:${one.port}/tours`, {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ cwd: dir, brief: "Explain a.txt" }),
+	});
+	const { id } = (await created.json()) as { id: string };
+	const agent = firstDriver.sessions[0] as FakeSession;
+	await agent.call("show_code", { path: "a.txt" });
+	await agent.emit({ type: "text", text: "Here is a.txt." });
+	await first.close();
+	one.server.close();
+	assert.equal(agent.closed, true);
+
+	const store = new TourStore(join(dir, "data"));
+	const { records } = await store.loadAll();
+	const secondDriver = new FakeDriver();
+	const second = createApp({
+		driver: secondDriver,
+		store,
+		records,
+		publicUrl: "http://desk.example:4270",
+		allowedHosts: ["127.0.0.1"],
+	});
+	const two = await listen(second, "127.0.0.1", 0);
+	after(async () => {
+		await second.close();
+		two.server.close();
+	});
+
+	const list = (await (
+		await fetch(`http://127.0.0.1:${two.port}/tours`)
+	).json()) as {
+		tours: Array<{ id: string; status: string }>;
+	};
+	assert.deepEqual(
+		list.tours.map((t) => [t.id, t.status]),
+		[[id, "waiting"]],
+	);
+	assert.equal(secondDriver.sessions.length, 0);
+
+	const socket = new WebSocket(`ws://127.0.0.1:${two.port}/tours/${id}/ws`);
+	const snapshot = await new Promise<{
+		state: { panes: unknown[]; transcript: unknown[] };
+	}>((resolve) =>
+		socket.once("message", (data) => resolve(JSON.parse(String(data)))),
+	);
+	assert.equal(snapshot.state.panes.length, 1);
+	assert.equal(snapshot.state.transcript.length, 1);
+
+	socket.send(JSON.stringify({ type: "message", text: "and then?" }));
+	await new Promise((resolve) => setTimeout(resolve, 50));
+	assert.equal(
+		secondDriver.sessions[0]?.options.resumeToken,
+		agent.resumeToken,
+	);
+	assert.deepEqual(secondDriver.sessions[0]?.received, ["and then?"]);
+	socket.close();
 });

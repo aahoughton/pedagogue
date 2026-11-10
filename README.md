@@ -43,6 +43,11 @@ ln -s "$(pwd)/skills/tour" ~/.claude/skills/tour
 ln -s "$(pwd)/bin/tour" ~/.local/bin/tour    # or any directory on your PATH
 ```
 
+Tours are saved under `~/.local/share/pedagogy` and listed on the daemon's
+index page. They survive a restart: a tutor that has been idle for 15 minutes,
+or whose daemon restarted, is stopped and wakes with its conversation when you
+next send it something.
+
 On the tour page, click a line number to select it, drag or Shift-click for a
 range, and Cmd/Ctrl-click to pick separate lines. The selection goes to the
 tutor with your next message.

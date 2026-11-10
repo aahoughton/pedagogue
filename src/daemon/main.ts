@@ -2,6 +2,7 @@ import { EnvFileError, envFilePath, loadEnvFile } from "../env-file.ts";
 import { ClaudeDriver } from "./claude-driver.ts";
 import { allowedHosts, ConfigError, readConfig } from "./config.ts";
 import { createApp, listen } from "./server.ts";
+import { TourStore } from "./store.ts";
 
 let config: ReturnType<typeof readConfig>;
 try {
@@ -20,9 +21,18 @@ try {
 	process.exit(2);
 }
 
+const store = new TourStore(config.dataDir);
+const { records, problems } = await store.loadAll();
+for (const problem of problems) {
+	console.error(`pedagogy: skipped a saved tour: ${problem}`);
+}
+console.log(`pedagogy: ${records.length} saved tours in ${config.dataDir}`);
+
 const app = createApp({
 	driver: new ClaudeDriver({ apiKey: config.apiKey, model: config.model }),
-	dataDir: config.dataDir,
+	store,
+	records,
+	idleMs: config.idleMs,
 	publicUrl: config.publicUrl,
 	allowedHosts: allowedHosts(config),
 });
@@ -41,9 +51,11 @@ for (const host of config.hosts) {
 }
 console.log(`pedagogy: tour links use ${config.publicUrl}`);
 
+let stopping = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	process.on(signal, () => {
-		app.close();
-		process.exit(0);
+		if (stopping) return;
+		stopping = true;
+		app.close().finally(() => process.exit(0));
 	});
 }

@@ -51,6 +51,8 @@ export type TranscriptItem =
 			text: string;
 			selection?: { path: string; ranges: LineRange[] };
 	  }
+	/** A message from the daemon itself, such as a tutor that failed to start. */
+	| { id: string; kind: "notice"; text: string }
 	| {
 			id: string;
 			kind: "quiz";
@@ -105,22 +107,59 @@ export type LearnerInput =
 
 export class InputError extends Error {}
 
-export interface TourOptions {
+/** What is saved for a tour and what it is restored from. */
+export interface TourRecord {
+	version: 1;
+	state: TourState;
+	brief: string;
+	scratchDir: string;
+	/** The tutor conversation to continue, as reported by the driver. */
+	resumeToken?: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface TourSettings {
+	driver: AgentDriver;
+	/** How long a tutor may wait for the learner before its process is stopped. */
+	idleMs?: number;
+	/** Called after every change to the tour, for saving it. */
+	onChange?: (tour: Tour) => void;
+}
+
+export interface TourOptions extends TourSettings {
 	id: string;
 	cwd: string;
 	scratchDir: string;
 	brief: string;
-	driver: AgentDriver;
 }
 
 /**
  * One tutoring session: the display state, the tutor agent that drives it, and the
  * learner input that feeds the agent. Viewers subscribe for events and can rebuild
  * the full state from a snapshot followed by the events after it.
+ *
+ * The tutor's process is not always running. A tour restored from disk, or one
+ * whose tutor sat idle, is dormant: it shows as waiting for the learner, and the
+ * next input starts a tutor that continues the saved conversation.
  */
 export class Tour {
 	readonly #state: TourState;
-	#session!: AgentSession;
+	readonly #settings: TourSettings;
+	readonly #brief: string;
+	readonly #scratchDir: string;
+	readonly #createdAt: string;
+	#updatedAt: string;
+	/** The running tutor, if any. */
+	#session: AgentSession | undefined;
+	/** Set while a tutor is starting or running; cleared when the tour goes dormant. */
+	#opening: Promise<AgentSession> | undefined;
+	#resumeToken: string | undefined;
+	/** True from resuming a conversation until the tutor completes a turn in it. */
+	#resuming = false;
+	/** Messages sent to the tutor in the turn in progress. */
+	#pending: string[] = [];
+	#idleTimer: NodeJS.Timeout | undefined;
 	readonly #subscribers = new Set<(event: TourEvent) => void>();
 	#nextId = 1;
 	/** Panes whose render failure the tutor has already been told about. */
@@ -130,28 +169,74 @@ export class Tour {
 
 	/** Starts the tutor and hands it the brief. Rejects if the tutor cannot start. */
 	static async open(options: TourOptions): Promise<Tour> {
-		const tour = new Tour(options);
-		tour.#session = await options.driver.open({
-			cwd: options.cwd,
+		const now = new Date().toISOString();
+		const tour = new Tour(options, {
+			version: 1,
+			state: {
+				id: options.id,
+				cwd: options.cwd,
+				title: firstLine(options.brief),
+				status: "working",
+				outline: [],
+				panes: [],
+				transcript: [],
+			},
+			brief: options.brief,
 			scratchDir: options.scratchDir,
-			systemPrompt: TUTOR_PROMPT,
-			tools: tour.#tools(),
+			createdAt: now,
+			updatedAt: now,
 		});
-		tour.#session.send(options.brief);
-		void tour.#consume();
+		tour.#opening = tour.#start(undefined);
+		await tour.#opening;
+		tour.#toAgent(options.brief);
 		return tour;
 	}
 
-	private constructor(options: TourOptions) {
-		this.#state = {
-			id: options.id,
-			cwd: options.cwd,
-			title: firstLine(options.brief),
-			status: "working",
-			outline: [],
-			panes: [],
-			transcript: [],
+	/** Brings back a saved tour as dormant. A turn that was in progress is over. */
+	static restore(record: TourRecord, settings: TourSettings): Tour {
+		const state = structuredClone(record.state);
+		if (state.status === "working") state.status = "waiting";
+		delete state.activity;
+		for (const item of state.transcript) {
+			if (item.kind === "tutor") delete item.streaming;
+		}
+		const tour = new Tour(settings, { ...record, state });
+		tour.#nextId =
+			1 +
+			Math.max(0, ...state.transcript.map((item) => Number(item.id.slice(1))));
+		return tour;
+	}
+
+	private constructor(settings: TourSettings, record: TourRecord) {
+		this.#settings = settings;
+		this.#state = record.state;
+		this.#brief = record.brief;
+		this.#scratchDir = record.scratchDir;
+		this.#resumeToken = record.resumeToken;
+		this.#createdAt = record.createdAt;
+		this.#updatedAt = record.updatedAt;
+	}
+
+	/** Everything needed to restore this tour later. */
+	record(): TourRecord {
+		return {
+			version: 1,
+			state: this.state,
+			brief: this.#brief,
+			scratchDir: this.#scratchDir,
+			resumeToken: this.#resumeToken,
+			createdAt: this.#createdAt,
+			updatedAt: this.#updatedAt,
 		};
+	}
+
+	get updatedAt(): string {
+		return this.#updatedAt;
+	}
+
+	/** True while a tutor process is starting or running for this tour. */
+	get awake(): boolean {
+		return this.#opening !== undefined;
 	}
 
 	get id(): string {
@@ -175,7 +260,7 @@ export class Tour {
 			throw new InputError("this tour has ended");
 		}
 		if (input.type === "interrupt") {
-			void this.#session.interrupt();
+			void this.#session?.interrupt();
 			return;
 		}
 		if (input.type === "pane_error") {
@@ -246,10 +331,115 @@ export class Tour {
 		this.#toAgent(prefix + text);
 	}
 
+	/** Ends the tour for good. It stays readable and accepts no more input. */
 	close(): void {
 		if (this.#state.status === "closed") return;
-		this.#session.close();
+		this.#detach();
 		this.#setStatus("closed");
+	}
+
+	/**
+	 * Stops the tutor's process and leaves the tour as it is, to be woken by the
+	 * next input. Used when the tutor has been idle and when the daemon stops.
+	 */
+	sleep(): void {
+		if (this.#state.status === "closed") return;
+		this.#detach();
+		this.#finishStreaming();
+		this.#setActivity(undefined);
+		this.#setStatus("waiting");
+	}
+
+	#detach(): void {
+		clearTimeout(this.#idleTimer);
+		const session = this.#session;
+		this.#session = undefined;
+		this.#opening = undefined;
+		this.#pending = [];
+		session?.close();
+	}
+
+	async #start(resumeToken: string | undefined): Promise<AgentSession> {
+		const session = await this.#settings.driver.open({
+			cwd: this.#state.cwd,
+			scratchDir: this.#scratchDir,
+			systemPrompt: TUTOR_PROMPT,
+			tools: this.#tools(),
+			resumeToken,
+		});
+		this.#session = session;
+		this.#resuming = resumeToken !== undefined;
+		this.#resumeToken = session.resumeToken;
+		void this.#consume(session);
+		return session;
+	}
+
+	/**
+	 * Replaces a tutor whose conversation could not be restored with a new one
+	 * that is told what happened so far, then repeats the learner's last input.
+	 */
+	#startFresh(): void {
+		const pending = this.#pending;
+		this.#detach();
+		this.#resumeToken = undefined;
+		this.#append({
+			kind: "notice",
+			text: "The tutor's memory of this tour could not be restored. A new tutor is picking up from what is on this page.",
+		});
+		this.#toAgent(
+			`${this.#recap()}\n\nThe learner's latest input follows.\n\n${pending.join("\n\n")}`,
+		);
+	}
+
+	/** The tour so far, written for a tutor that has no memory of it. */
+	#recap(): string {
+		const state = this.#state;
+		const lines = [
+			"You are taking over a tour in progress. The tutor before you is gone and its conversation could not be restored. The learner still sees everything described below. Continue from where it stopped; do not start over or re-introduce yourself.",
+			"",
+			`<original_brief>\n${this.#brief}\n</original_brief>`,
+		];
+		if (state.outline.length > 0) {
+			const steps = state.outline.map(
+				(title, i) =>
+					`${i + 1}. ${title}${i === state.step ? " (in progress)" : ""}`,
+			);
+			lines.push(`<outline>\n${steps.join("\n")}\n</outline>`);
+		}
+		if (state.panes.length > 0) {
+			const panes = state.panes.map((pane) => {
+				const detail =
+					pane.kind === "code"
+						? `${pane.path}, highlights ${formatRanges(pane.highlights) || "none"}`
+						: pane.title;
+				return `- ${pane.id} (${detail})${pane.id === state.focus ? " [in front]" : ""}`;
+			});
+			lines.push(`<open_panes>\n${panes.join("\n")}\n</open_panes>`);
+		}
+		const said = state.transcript.flatMap((item) => {
+			if (item.kind === "tutor") return [`Tutor: ${item.text}`];
+			if (item.kind === "learner") return [`Learner: ${item.text}`];
+			if (item.kind === "quiz") {
+				const outcome = item.skipped
+					? "skipped"
+					: item.answer === undefined
+						? "still open on the learner's screen"
+						: `answered: ${item.answer}`;
+				return [`Tutor asked: ${item.question} (${outcome})`];
+			}
+			return [];
+		});
+		lines.push(`<conversation>\n${said.join("\n\n")}\n</conversation>`);
+		return lines.join("\n");
+	}
+
+	#fail(error: unknown): void {
+		this.#detach();
+		this.#append({
+			kind: "notice",
+			text: `The tutor could not start: ${error instanceof Error ? error.message : String(error)}. Send your message again to retry.`,
+		});
+		this.#setStatus("waiting");
 	}
 
 	#openQuiz(): QuizItem | undefined {
@@ -268,12 +458,34 @@ export class Tour {
 	}
 
 	#toAgent(text: string): void {
+		clearTimeout(this.#idleTimer);
 		this.#setStatus("working");
-		this.#session.send(text);
+		this.#pending.push(text);
+		if (this.#session) {
+			this.#session.send(text);
+			return;
+		}
+		if (!this.#opening) {
+			this.#setActivity("Waking the tutor");
+			this.#opening = this.#start(this.#resumeToken);
+		}
+		const opening = this.#opening;
+		opening.then(
+			(session) => {
+				// The tour may have gone dormant or been closed while this one started.
+				if (this.#opening === opening) session.send(text);
+			},
+			(error: unknown) => {
+				if (this.#opening === opening) this.#fail(error);
+			},
+		);
 	}
 
-	async #consume(): Promise<void> {
-		for await (const event of this.#session.events) {
+	async #consume(session: AgentSession): Promise<void> {
+		for await (const event of session.events) {
+			// A session that was detached may still deliver events; they no
+			// longer belong to the tour.
+			if (session !== this.#session) return;
 			if (event.type === "text_delta") {
 				const item = this.#streaming.get(event.id);
 				if (item) {
@@ -304,19 +516,39 @@ export class Tour {
 			} else if (event.type === "turn_end") {
 				this.#finishStreaming();
 				this.#setActivity(undefined);
+				if (event.status === "failed" && this.#resuming) {
+					this.#startFresh();
+					return;
+				}
+				this.#resuming = false;
+				this.#pending = [];
 				if (event.status === "failed") {
 					this.#append({
-						kind: "tutor",
+						kind: "notice",
 						text: `The tutor stopped early (${event.error ?? "unknown error"}). Send a message to continue.`,
 					});
 				}
-				if (this.#state.status !== "closed") this.#setStatus("waiting");
+				this.#setStatus("waiting");
+				this.#armIdleTimer();
 			} else {
 				this.#finishStreaming();
 				this.#setActivity(undefined);
+				if (this.#resuming) {
+					this.#startFresh();
+					return;
+				}
+				this.#detach();
 				this.#setStatus("closed", event.error);
 			}
 		}
+	}
+
+	#armIdleTimer(): void {
+		clearTimeout(this.#idleTimer);
+		const idleMs = this.#settings.idleMs;
+		if (idleMs === undefined) return;
+		this.#idleTimer = setTimeout(() => this.sleep(), idleMs);
+		this.#idleTimer.unref();
 	}
 
 	/** Settles messages cut off mid-stream, for example by an interrupt. */
@@ -353,8 +585,10 @@ export class Tour {
 	}
 
 	#emit(event: TourEvent): void {
+		this.#updatedAt = new Date().toISOString();
 		const copy = structuredClone(event);
 		for (const subscriber of this.#subscribers) subscriber(copy);
+		this.#settings.onChange?.(this);
 	}
 
 	/** Resolves a tutor-supplied path and refuses anything outside the tour's directory. */

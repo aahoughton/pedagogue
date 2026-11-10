@@ -2,6 +2,12 @@ const list = document.getElementById("tours");
 const form = document.getElementById("start");
 const errorBox = document.getElementById("error");
 
+const STATUS = {
+	working: "tutor working",
+	waiting: "your turn",
+	closed: "ended",
+};
+
 async function refresh() {
 	const { tours } = await (await fetch("/tours")).json();
 	if (tours.length === 0) return;
@@ -11,9 +17,13 @@ async function refresh() {
 			const link = document.createElement("a");
 			link.href = `/tours/${tour.id}`;
 			link.textContent = tour.title;
-			const meta = document.createElement("span");
+			const meta = document.createElement("div");
 			meta.className = "meta";
-			meta.textContent = ` ${tour.cwd} (${tour.status})`;
+			const when = new Date(tour.updatedAt).toLocaleString(undefined, {
+				dateStyle: "medium",
+				timeStyle: "short",
+			});
+			meta.textContent = `${STATUS[tour.status]} \u00b7 ${when} \u00b7 ${tour.cwd}`;
 			item.append(link, meta);
 			return item;
 		}),

@@ -10,6 +10,8 @@ export interface Config {
 	port: number;
 	publicUrl: string;
 	dataDir: string;
+	/** How long a tutor may wait for the learner before its process is stopped. */
+	idleMs: number;
 	model?: string;
 }
 
@@ -26,6 +28,8 @@ export class ConfigError extends Error {}
  * - PEDAGOGY_PUBLIC_URL: base URL put in the links handed out for tours.
  *   Default http://<first host>:<port>.
  * - PEDAGOGY_DATA_DIR: default $XDG_DATA_HOME/pedagogy or ~/.local/share/pedagogy.
+ * - PEDAGOGY_IDLE_MINUTES: how long a tutor waits for the learner before its
+ *   process is stopped; the next message wakes it. Default 15.
  * - PEDAGOGY_MODEL: model for tutors. Default: the Agent SDK's default.
  */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
@@ -56,7 +60,24 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
 		env.PEDAGOGY_DATA_DIR ??
 		join(env.XDG_DATA_HOME ?? join(homedir(), ".local/share"), "pedagogy");
 
-	return { apiKey, hosts, port, publicUrl, dataDir, model: env.PEDAGOGY_MODEL };
+	const idleMinutes = env.PEDAGOGY_IDLE_MINUTES
+		? Number(env.PEDAGOGY_IDLE_MINUTES)
+		: 15;
+	if (!(idleMinutes > 0)) {
+		throw new ConfigError(
+			`PEDAGOGY_IDLE_MINUTES is not a positive number: ${env.PEDAGOGY_IDLE_MINUTES}`,
+		);
+	}
+
+	return {
+		apiKey,
+		hosts,
+		port,
+		publicUrl,
+		dataDir,
+		idleMs: idleMinutes * 60_000,
+		model: env.PEDAGOGY_MODEL,
+	};
 }
 
 /** Hostnames requests may be addressed to: every listen address and the public URL's host. */
