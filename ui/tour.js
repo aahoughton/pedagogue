@@ -4,6 +4,7 @@ import DOMPurify from "/vendor/purify.js";
 import {
 	ago,
 	buildLabel,
+	clampInputHeight,
 	compressLines,
 	languageFor,
 	paneForPath,
@@ -617,6 +618,64 @@ $("input").addEventListener("keydown", (event) => {
 	}
 });
 $("stop").addEventListener("click", () => send({ type: "interrupt" }));
+
+// The handle on the composer's top edge sets the input's height. The browser
+// keeps the height, so it applies to every tour until the learner resets it.
+const HEIGHT_KEY = "pedagogue.inputHeight";
+
+/** Gives the input the nearest height the side panel allows and returns it. */
+function setInputHeight(height) {
+	const allowed = clampInputHeight(height, $("side").clientHeight);
+	if (allowed !== undefined) $("input").style.height = `${allowed}px`;
+	announceInputHeight();
+	return allowed;
+}
+function announceInputHeight() {
+	$("resize").setAttribute("aria-valuenow", String($("input").offsetHeight));
+}
+function saveInputHeight(height) {
+	if (height !== undefined) localStorage.setItem(HEIGHT_KEY, String(height));
+}
+function restoreInputHeight() {
+	const saved = localStorage.getItem(HEIGHT_KEY);
+	if (saved !== null) setInputHeight(Number(saved));
+}
+restoreInputHeight();
+announceInputHeight();
+// A smaller window lowers the limit; a larger one brings the saved height back.
+window.addEventListener("resize", restoreInputHeight);
+
+/** The drag under way: where it began ({ y, height }) and the last height it set. */
+let drag;
+$("resize").addEventListener("pointerdown", (event) => {
+	if (event.button !== 0) return;
+	event.preventDefault();
+	drag = { y: event.clientY, height: $("input").offsetHeight };
+	$("resize").setPointerCapture(event.pointerId);
+	$("resize").classList.add("dragging");
+});
+$("resize").addEventListener("pointermove", (event) => {
+	if (drag) drag.last = setInputHeight(drag.height + drag.y - event.clientY);
+});
+function endDrag() {
+	if (!drag) return;
+	saveInputHeight(drag.last);
+	drag = undefined;
+	$("resize").classList.remove("dragging");
+}
+$("resize").addEventListener("pointerup", endDrag);
+$("resize").addEventListener("pointercancel", endDrag);
+$("resize").addEventListener("dblclick", () => {
+	localStorage.removeItem(HEIGHT_KEY);
+	$("input").style.height = "";
+	announceInputHeight();
+});
+$("resize").addEventListener("keydown", (event) => {
+	const step = { ArrowUp: 16, ArrowDown: -16 }[event.key];
+	if (!step) return;
+	event.preventDefault();
+	saveInputHeight(setInputHeight($("input").offsetHeight + step));
+});
 
 // Next is the one-click "that makes sense, go on". It leaves any draft and
 // selection in the composer alone.

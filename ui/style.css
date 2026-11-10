@@ -464,9 +464,29 @@ body.tour #titlebar {
 	animation-delay: 0.6s;
 }
 #composer {
+	position: relative;
 	padding: 10px 12px;
 	border-top: 1px solid var(--border);
 	flex: none;
+}
+/* Lies over the composer's top border; dragging it sets the input's height. */
+#resize {
+	position: absolute;
+	top: -4px;
+	left: 0;
+	right: 0;
+	height: 7px;
+	margin: 0;
+	border: 0;
+	cursor: ns-resize;
+	touch-action: none;
+}
+#resize:hover,
+#resize:focus-visible,
+#resize.dragging {
+	background: var(--accent);
+	opacity: 0.5;
+	outline: 0;
 }
 #selection {
 	display: inline-flex;
@@ -487,7 +507,7 @@ body.tour #titlebar {
 	padding: 0 6px;
 }
 #composer textarea {
-	resize: vertical;
+	resize: none;
 	display: block;
 }
 .actions {

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
 	ago,
 	buildLabel,
+	clampInputHeight,
 	compressLines,
 	languageFor,
 	paneForPath,
@@ -100,4 +101,23 @@ test("ago rounds down to minutes, hours, then days", () => {
 	assert.equal(ago("2026-11-10T11:48:00Z", now), "12m ago");
 	assert.equal(ago("2026-11-10T09:01:00Z", now), "2h ago");
 	assert.equal(ago("2026-11-08T11:00:00Z", now), "2d ago");
+});
+
+test("clampInputHeight keeps a height the side panel has room for", () => {
+	assert.equal(clampInputHeight(200, 900), 200);
+	assert.equal(clampInputHeight(180.6, 900), 181);
+});
+
+test("clampInputHeight stops at two lines and at half the side panel", () => {
+	assert.equal(clampInputHeight(10, 900), 64);
+	assert.equal(clampInputHeight(800, 900), 450);
+});
+
+test("clampInputHeight prefers the minimum in a panel too short for both", () => {
+	assert.equal(clampInputHeight(300, 80), 64);
+});
+
+test("clampInputHeight rejects a height that is not a number", () => {
+	assert.equal(clampInputHeight(Number.NaN, 900), undefined);
+	assert.equal(clampInputHeight(Number("tall"), 900), undefined);
 });

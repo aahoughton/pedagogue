@@ -132,3 +132,18 @@ export function ago(iso, now) {
 	if (minutes < 60 * 24) return `${Math.floor(minutes / 60)}h ago`;
 	return `${Math.floor(minutes / (60 * 24))}d ago`;
 }
+
+/** The shortest the composer's input gets: two lines of text, in pixels. */
+const MIN_INPUT_HEIGHT = 64;
+
+/**
+ * The height in pixels to give the composer's input when the learner asks for
+ * `height` in a side panel `sideHeight` tall: no shorter than two lines and no
+ * taller than half the panel, so the conversation stays in view. Returns
+ * undefined when `height` is not a number.
+ */
+export function clampInputHeight(height, sideHeight) {
+	if (!Number.isFinite(height)) return undefined;
+	const max = Math.max(MIN_INPUT_HEIGHT, Math.floor(sideHeight / 2));
+	return Math.min(max, Math.max(MIN_INPUT_HEIGHT, Math.round(height)));
+}
