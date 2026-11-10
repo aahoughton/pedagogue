@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+import { text } from "node:stream/consumers";
+import {
+	parseArgs,
+	startTour,
+	USAGE,
+	UsageError,
+} from "../src/cli/start-tour.ts";
+
+try {
+	const request = parseArgs(process.argv.slice(2), process.cwd());
+	if (request.brief === "-") request.brief = await text(process.stdin);
+	const daemonUrl = process.env.PEDAGOGY_URL ?? "http://127.0.0.1:4270";
+	console.log(await startTour(daemonUrl, request));
+} catch (error) {
+	if (error instanceof UsageError) {
+		console.error(`tour: ${error.message}\n\n${USAGE}`);
+		process.exit(2);
+	}
+	console.error(`tour: ${error instanceof Error ? error.message : error}`);
+	process.exit(1);
+}
