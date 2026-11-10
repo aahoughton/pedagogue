@@ -48,7 +48,7 @@ on another machine.
 ## Quick start
 
 ```sh
-git clone <this repository> pedagogue && cd pedagogue
+git clone https://github.com/aahoughton/pedagogue && cd pedagogue
 pnpm install
 mkdir -p ~/.config/pedagogue
 install -m 600 env.example ~/.config/pedagogue/env   # then add your API key
