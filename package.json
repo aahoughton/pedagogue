@@ -2,6 +2,7 @@
 	"name": "pedagogue",
 	"version": "0.9.0",
 	"description": "A tutor agent that walks you through a codebase in the browser",
+	"license": "MIT",
 	"private": true,
 	"type": "module",
 	"scripts": {
