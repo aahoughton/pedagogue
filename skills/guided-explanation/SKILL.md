@@ -1,7 +1,6 @@
 ---
-
 name: guided-explanation
-description: Start a guided tour in the pedagogue app, where a tutor agent walks the user through a topic with code panes, questions and quizzes in a browser page. Use when the user asks to be walked through, taught, or quizzed on something ("explain how X works", "walk me through this branch", "quiz me on Y") and the topic spans several files or ideas. Answer in the conversation instead when a few paragraphs would do.
+description: Use when the user asks to have something explained, walked through, taught, or quizzed, and the topic spans several files or steps ("explain how X works", "how does this codebase handle Y", "walk me through this branch"). Starts a guided tour in the pedagogue app, where a tutor agent uses code panes, diagrams and quizzes in a browser page. Answer in the conversation instead for a single function, file or fact, or when the user asks for a brief or inline answer.
 ---
 
 # Starting a tour
@@ -10,10 +9,12 @@ A tour runs in a separate tutor agent with its own display. Your job is to hand
 it a good brief and give the user the link. You do not teach the topic yourself,
 and the tutor does not see this conversation.
 
-1. Decide whether the topic deserves a tour. One function or one concept is an
-   answer in the conversation. A subsystem, a request's path through several
-   files, or "how does this whole thing fit together" is a tour. If the user
-   asked for a tour by name, start one.
+1. Decide whether the topic deserves a tour, from the question, before you
+   start answering. A topic that spans several files or steps is a tour: a
+   subsystem, a request's path through the code, what a branch changes, how
+   the whole thing fits together. A single function, file or fact is an
+   answer in the conversation. So is anything the user asked to have answered
+   briefly or inline. If the user asked for a tour by name, start one.
 
 2. Write the brief. The tutor starts from nothing but this text and the
    directory, so include:
