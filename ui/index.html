@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tours</title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="index">
+<main>
+  <h1>Tours</h1>
+  <ul id="tours"><li class="empty">No tours yet.</li></ul>
+  <h2>Start a tour</h2>
+  <form id="start">
+    <label>Directory on the daemon's machine
+      <input name="cwd" required placeholder="/Users/me/project" autocomplete="off">
+    </label>
+    <label>What do you want to understand?
+      <textarea name="brief" rows="3" required placeholder="How does config loading work?"></textarea>
+    </label>
+    <button type="submit">Start</button>
+    <p id="error" class="error" hidden></p>
+  </form>
+</main>
+<script type="module" src="/assets/index.js"></script>
+</body>
+</html>

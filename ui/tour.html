@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tour</title>
+<link rel="stylesheet" href="/vendor/highlight-light.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/vendor/highlight-dark.css" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="tour">
+<main id="stage">
+  <nav id="tabs" aria-label="Panes"></nav>
+  <div id="panes"><p class="empty" id="no-panes">The tutor is reading. Panes appear here.</p></div>
+</main>
+<aside id="side">
+  <header>
+    <a href="/" class="home" title="All tours">&larr;</a>
+    <h1 id="title">Tour</h1>
+    <span id="status" class="status"></span>
+  </header>
+  <ol id="outline" hidden></ol>
+  <div id="transcript" aria-live="polite"></div>
+  <form id="composer">
+    <div id="selection" hidden><span id="selection-label"></span><button type="button" id="selection-clear" title="Clear selection">&times;</button></div>
+    <textarea id="input" rows="2" placeholder="Ask, answer, or say &quot;next&quot;. Enter sends."></textarea>
+    <div class="actions">
+      <span class="hint">Click line numbers to select. Shift extends, Cmd/Ctrl adds single lines.</span>
+      <button type="button" id="stop" hidden>Stop</button>
+      <button type="submit" id="send">Send</button>
+    </div>
+  </form>
+</aside>
+<script type="module" src="/assets/tour.js"></script>
+</body>
+</html>
