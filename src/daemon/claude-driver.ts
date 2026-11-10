@@ -6,6 +6,7 @@ import {
 	type SDKUserMessage,
 	tool,
 } from "@anthropic-ai/claude-agent-sdk";
+import { activityLabel } from "./activity.ts";
 import { Channel } from "./channel.ts";
 import type {
 	AgentDriver,
@@ -82,17 +83,74 @@ export class ClaudeDriver implements AgentDriver {
 				// Code settings, hooks and MCP servers stay out of it.
 				settingSources: [],
 				strictMcpConfig: true,
+				includePartialMessages: true,
 				env: { ...process.env, ANTHROPIC_API_KEY: this.#options.apiKey },
 			},
 		});
 
 		let interrupted = false;
+		// Text arrives twice: as stream events while it is written and inside the
+		// finished assistant message. A message whose text was streamed is not
+		// emitted again from the finished message.
+		const streamed = new Set<string>();
+		let messageId = "";
+		const open = new Map<number, { id: string; text: string }>();
 		void (async () => {
 			try {
 				for await (const message of run) {
-					if (message.type === "assistant" && !message.parent_tool_use_id) {
+					if (message.type === "stream_event") {
+						if (message.parent_tool_use_id) continue;
+						const event = message.event;
+						if (event.type === "message_start") {
+							messageId = event.message.id;
+							open.clear();
+						} else if (event.type === "content_block_start") {
+							const kind = event.content_block.type;
+							if (kind === "text") {
+								open.set(event.index, {
+									id: `${messageId}:${event.index}`,
+									text: "",
+								});
+							} else if (kind === "thinking") {
+								events.push({ type: "activity", label: "Thinking" });
+							}
+						} else if (event.type === "content_block_delta") {
+							const block = open.get(event.index);
+							if (block && event.delta.type === "text_delta") {
+								block.text += event.delta.text;
+								streamed.add(messageId);
+								events.push({
+									type: "text_delta",
+									id: block.id,
+									text: event.delta.text,
+								});
+							}
+						} else if (event.type === "content_block_stop") {
+							const block = open.get(event.index);
+							open.delete(event.index);
+							if (block?.text.trim()) {
+								events.push({ type: "text", id: block.id, text: block.text });
+							}
+						}
+					} else if (
+						message.type === "assistant" &&
+						!message.parent_tool_use_id
+					) {
 						for (const block of message.message.content) {
-							if (block.type === "text" && block.text.trim()) {
+							if (block.type === "tool_use") {
+								events.push({
+									type: "activity",
+									label: activityLabel(
+										block.name,
+										block.input as Record<string, unknown>,
+										sandbox.toolPrefix,
+									),
+								});
+							} else if (
+								block.type === "text" &&
+								block.text.trim() &&
+								!streamed.has(message.message.id)
+							) {
 								events.push({ type: "text", text: block.text });
 							}
 						}
@@ -109,6 +167,7 @@ export class ClaudeDriver implements AgentDriver {
 							});
 						}
 						interrupted = false;
+						streamed.clear();
 					}
 				}
 				events.push({ type: "closed" });

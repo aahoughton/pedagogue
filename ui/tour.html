@@ -21,13 +21,15 @@
   </header>
   <ol id="outline" hidden></ol>
   <div id="transcript" aria-live="polite"></div>
+  <div id="working" hidden><span class="dots"><i></i><i></i><i></i></span><span id="activity"></span></div>
   <form id="composer">
     <div id="selection" hidden><span id="selection-label"></span><button type="button" id="selection-clear" title="Clear selection">&times;</button></div>
-    <textarea id="input" rows="2" placeholder="Ask, answer, or say &quot;next&quot;. Enter sends."></textarea>
+    <textarea id="input" rows="2" placeholder="Ask a question or answer. Enter sends."></textarea>
     <div class="actions">
       <span class="hint">Click line numbers to select. Shift extends, Cmd/Ctrl adds single lines.</span>
       <button type="button" id="stop" hidden>Stop</button>
       <button type="submit" id="send">Send</button>
+      <button type="button" id="next" title="This makes sense, go on (Cmd/Ctrl+Enter)" disabled>Next</button>
     </div>
   </form>
 </aside>

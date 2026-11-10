@@ -51,6 +51,7 @@ function apply(event) {
 			renderOutline();
 			renderSelection();
 			setStatus(state.status, state.error);
+			setActivity(state.activity);
 			break;
 		case "pane": {
 			const index = state.panes.findIndex((p) => p.id === event.pane.id);
@@ -85,6 +86,17 @@ function apply(event) {
 			renderItem(event.item);
 			break;
 		}
+		case "item_delta": {
+			const item = state.transcript.find((i) => i.id === event.id);
+			if (!item) break;
+			item.text += event.text;
+			renderItem(item);
+			break;
+		}
+		case "activity":
+			state.activity = event.label;
+			setActivity(event.label);
+			break;
 		case "status":
 			state.status = event.status;
 			setStatus(event.status, event.error);
@@ -108,9 +120,28 @@ function setStatus(status, error) {
 	element.textContent = labels[status];
 	element.className = `status ${status}`;
 	$("stop").hidden = status !== "working";
+	$("working").hidden = status !== "working";
+	$("next").disabled = status !== "waiting";
 	const closed = status === "closed";
 	$("input").disabled = closed;
 	$("send").disabled = closed;
+}
+
+/** Says what the tutor is doing, next to the dots under the conversation. */
+function setActivity(label) {
+	$("activity").textContent = label
+		? `${label}...`
+		: "The tutor is working. You can type; it is read after this turn.";
+}
+
+/** Runs a change to the conversation and keeps it scrolled to the end if it was there. */
+function keepAtEnd(change) {
+	const transcript = $("transcript");
+	const atEnd =
+		transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight <
+		80;
+	change();
+	if (atEnd) transcript.scrollTop = transcript.scrollHeight;
 }
 
 function renderOutline() {
@@ -358,7 +389,7 @@ function renderMarkdown(text) {
 
 function renderItem(item) {
 	const element = document.createElement("div");
-	element.className = `item ${item.kind}`;
+	element.className = `item ${item.kind}${item.streaming ? " streaming" : ""}`;
 	element.dataset.id = item.id;
 	if (item.kind === "tutor") {
 		element.innerHTML = renderMarkdown(item.text);
@@ -377,15 +408,26 @@ function renderItem(item) {
 	}
 	const transcript = $("transcript");
 	const existing = transcript.querySelector(`.item[data-id="${item.id}"]`);
-	if (existing) existing.replaceWith(element);
-	else transcript.append(element);
-	element.scrollIntoView({ block: "nearest" });
+	if (existing) {
+		keepAtEnd(() => existing.replaceWith(element));
+	} else if (item.kind === "learner") {
+		transcript.append(element);
+		transcript.scrollTop = transcript.scrollHeight;
+	} else {
+		keepAtEnd(() => transcript.append(element));
+	}
 }
 
 function quizView(quiz) {
 	const question = document.createElement("div");
 	question.className = "question";
 	question.innerHTML = renderMarkdown(quiz.question);
+	if (quiz.skipped) {
+		const skipped = document.createElement("p");
+		skipped.className = "answer";
+		skipped.textContent = "Skipped";
+		return [question, skipped];
+	}
 	if (quiz.answer !== undefined) {
 		const answer = document.createElement("p");
 		answer.className = "answer";
@@ -450,12 +492,27 @@ $("composer").addEventListener("submit", (event) => {
 	}
 });
 $("input").addEventListener("keydown", (event) => {
+	if (event.metaKey || event.ctrlKey) return;
 	if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
 		event.preventDefault();
 		$("composer").requestSubmit();
 	}
 });
 $("stop").addEventListener("click", () => send({ type: "interrupt" }));
+
+// Next is the one-click "that makes sense, go on". It leaves any draft and
+// selection in the composer alone.
+function next() {
+	if ($("next").disabled) return;
+	send({ type: "message", text: "next" });
+}
+$("next").addEventListener("click", next);
+document.addEventListener("keydown", (event) => {
+	if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+		event.preventDefault();
+		next();
+	}
+});
 
 function escapeHtml(text) {
 	return text.replace(

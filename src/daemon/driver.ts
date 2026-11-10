@@ -14,8 +14,16 @@ export interface ToolSpec<Shape extends z.ZodRawShape = z.ZodRawShape> {
 }
 
 export type AgentEvent =
-	/** Prose the agent addressed to the learner. */
-	| { type: "text"; text: string }
+	/**
+	 * A piece of prose as the agent writes it. Pieces with the same `id` belong
+	 * to one message and are followed by a `text` event with that id. A driver
+	 * that cannot stream sends only `text` events.
+	 */
+	| { type: "text_delta"; id: string; text: string }
+	/** A complete piece of prose the agent addressed to the learner. */
+	| { type: "text"; id?: string; text: string }
+	/** A few words on what the agent is doing while it has nothing to show yet. */
+	| { type: "activity"; label: string }
 	/** The agent stopped responding to the input it had and is waiting for more. */
 	| {
 			type: "turn_end";

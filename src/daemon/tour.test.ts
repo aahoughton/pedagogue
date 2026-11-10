@@ -262,3 +262,88 @@ test("a diagram that fails to draw is reported to the tutor once per showing", a
 	});
 	assert.equal(agent.received.length, before + 2);
 });
+
+test("streamed text grows one transcript item and settles on the final text", async () => {
+	const { tour, agent, events } = await openTour();
+	await agent.emit({ type: "activity", label: "Reading a.txt" });
+	assert.equal(tour.state.activity, "Reading a.txt");
+
+	await agent.emit({ type: "text_delta", id: "m1:0", text: "Line " });
+	await agent.emit({ type: "text_delta", id: "m1:0", text: "two" });
+	const growing = tour.state.transcript.at(-1);
+	assert.deepEqual(growing, {
+		id: growing?.id,
+		kind: "tutor",
+		text: "Line two",
+		streaming: true,
+	});
+	assert.equal(tour.state.activity, "Writing");
+
+	await agent.emit({ type: "text", id: "m1:0", text: "Line two." });
+	assert.equal(tour.state.transcript.length, 1);
+	assert.deepEqual(tour.state.transcript[0], {
+		id: growing?.id,
+		kind: "tutor",
+		text: "Line two.",
+	});
+	assert.deepEqual(
+		events.slice(1).map((e) => e.type),
+		["activity", "activity", "item", "item_delta", "item"],
+	);
+});
+
+test("a message cut off mid-stream is settled when the turn ends", async () => {
+	const { tour, agent } = await openTour();
+	await agent.emit({ type: "activity", label: "Thinking" });
+	await agent.emit({ type: "text_delta", id: "m1:0", text: "Half a sen" });
+	await agent.emit({ type: "turn_end", status: "interrupted" });
+	assert.deepEqual(tour.state.transcript.at(-1), {
+		id: "t1",
+		kind: "tutor",
+		text: "Half a sen",
+	});
+	assert.equal(tour.state.activity, undefined);
+	assert.equal(tour.state.status, "waiting");
+});
+
+test("a second question is refused while one is open", async () => {
+	const { tour, agent } = await openTour();
+	await agent.call("ask_quiz", { question: "First?" });
+	await assert.rejects(
+		agent.call("ask_quiz", { question: "First?" }),
+		/already open and unanswered: "First\?"/,
+	);
+	await assert.rejects(
+		agent.call("ask_quiz", { question: "Second?" }),
+		/already open/,
+	);
+	assert.equal(
+		tour.state.transcript.filter((i) => i.kind === "quiz").length,
+		1,
+	);
+
+	const quiz = tour.state.transcript[0];
+	tour.input({ type: "answer", quizId: quiz?.id as string, text: "yes" });
+	await agent.call("ask_quiz", { question: "Second?" });
+	assert.equal(
+		tour.state.transcript.filter((i) => i.kind === "quiz").length,
+		2,
+	);
+});
+
+test("a message sent instead of an answer skips the open question", async () => {
+	const { tour, agent } = await openTour();
+	await agent.call("ask_quiz", { question: "Why?" });
+	const quiz = tour.state.transcript[0];
+
+	tour.input({ type: "message", text: "next" });
+	assert.equal(agent.received.at(-1), '<quiz_skipped question="Why?" />\nnext');
+	const skipped = tour.state.transcript[0];
+	assert.equal(skipped?.kind === "quiz" && skipped.skipped, true);
+	assert.throws(
+		() =>
+			tour.input({ type: "answer", quizId: quiz?.id as string, text: "late" }),
+		/skipped/,
+	);
+	await agent.call("ask_quiz", { question: "Another?" });
+});

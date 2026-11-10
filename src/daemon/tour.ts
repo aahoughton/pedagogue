@@ -38,7 +38,13 @@ export interface Selection {
 }
 
 export type TranscriptItem =
-	| { id: string; kind: "tutor"; text: string }
+	| {
+			id: string;
+			kind: "tutor";
+			text: string;
+			/** True while the tutor is still writing this message. */
+			streaming?: boolean;
+	  }
 	| {
 			id: string;
 			kind: "learner";
@@ -51,7 +57,12 @@ export type TranscriptItem =
 			question: string;
 			choices: string[];
 			answer?: string;
+			/** True when the learner moved on without answering. */
+			skipped?: boolean;
 	  };
+
+type TutorItem = Extract<TranscriptItem, { kind: "tutor" }>;
+type QuizItem = Extract<TranscriptItem, { kind: "quiz" }>;
 
 export type TourStatus = "working" | "waiting" | "closed";
 
@@ -65,6 +76,8 @@ export interface TourState {
 	outline: string[];
 	/** Index into `outline` of the step in progress. */
 	step?: number;
+	/** What the tutor is doing right now, while status is "working". */
+	activity?: string;
 	panes: Pane[];
 	focus?: string;
 	transcript: TranscriptItem[];
@@ -78,6 +91,9 @@ export type TourEvent =
 	| { type: "focus"; id: string }
 	| { type: "outline"; outline: string[]; step?: number }
 	| { type: "item"; item: TranscriptItem }
+	/** Text to add to the end of a tutor item that is still being written. */
+	| { type: "item_delta"; id: string; text: string }
+	| { type: "activity"; label?: string }
 	| { type: "status"; status: TourStatus; error?: string };
 
 export type LearnerInput =
@@ -109,6 +125,8 @@ export class Tour {
 	#nextId = 1;
 	/** Panes whose render failure the tutor has already been told about. */
 	readonly #reportedPaneErrors = new Set<string>();
+	/** Transcript items being streamed, by the driver's text id. */
+	readonly #streaming = new Map<string, TutorItem>();
 
 	/** Starts the tutor and hands it the brief. Rejects if the tutor cannot start. */
 	static async open(options: TourOptions): Promise<Tour> {
@@ -180,6 +198,9 @@ export class Tour {
 			if (quiz.answer !== undefined) {
 				throw new InputError("that quiz is already answered");
 			}
+			if (quiz.skipped) {
+				throw new InputError("that quiz was skipped");
+			}
 			quiz.answer = input.text;
 			this.#emit({ type: "item", item: quiz });
 			this.#toAgent(
@@ -213,6 +234,14 @@ export class Tour {
 			shown = { path: pane.path, ranges };
 			prefix = `<selection path=${JSON.stringify(pane.path)} lines="${formatRanges(ranges)}">\n${excerpt(pane.text, ranges)}\n</selection>\n`;
 		}
+		// A message sent while a question is open means the learner moved on.
+		// The card closes so the tutor is free to ask again.
+		const open = this.#openQuiz();
+		if (open) {
+			open.skipped = true;
+			this.#emit({ type: "item", item: open });
+			prefix = `<quiz_skipped question=${JSON.stringify(open.question)} />\n${prefix}`;
+		}
 		this.#append({ kind: "learner", text, selection: shown });
 		this.#toAgent(prefix + text);
 	}
@@ -223,6 +252,21 @@ export class Tour {
 		this.#setStatus("closed");
 	}
 
+	#openQuiz(): QuizItem | undefined {
+		for (const item of this.#state.transcript) {
+			if (item.kind === "quiz" && item.answer === undefined && !item.skipped) {
+				return item;
+			}
+		}
+		return undefined;
+	}
+
+	#setActivity(label: string | undefined): void {
+		if (this.#state.activity === label) return;
+		this.#state.activity = label;
+		this.#emit({ type: "activity", label });
+	}
+
 	#toAgent(text: string): void {
 		this.#setStatus("working");
 		this.#session.send(text);
@@ -230,9 +274,36 @@ export class Tour {
 
 	async #consume(): Promise<void> {
 		for await (const event of this.#session.events) {
-			if (event.type === "text") {
-				this.#append({ kind: "tutor", text: event.text });
+			if (event.type === "text_delta") {
+				const item = this.#streaming.get(event.id);
+				if (item) {
+					item.text += event.text;
+					this.#emit({ type: "item_delta", id: item.id, text: event.text });
+				} else {
+					this.#setActivity("Writing");
+					const created = this.#append({
+						kind: "tutor",
+						text: event.text,
+						streaming: true,
+					});
+					this.#streaming.set(event.id, created as TutorItem);
+				}
+			} else if (event.type === "text") {
+				const item = event.id ? this.#streaming.get(event.id) : undefined;
+				if (item && event.id) {
+					this.#streaming.delete(event.id);
+					item.text = event.text;
+					delete item.streaming;
+					this.#emit({ type: "item", item });
+				} else {
+					this.#setActivity(undefined);
+					this.#append({ kind: "tutor", text: event.text });
+				}
+			} else if (event.type === "activity") {
+				this.#setActivity(event.label);
 			} else if (event.type === "turn_end") {
+				this.#finishStreaming();
+				this.#setActivity(undefined);
 				if (event.status === "failed") {
 					this.#append({
 						kind: "tutor",
@@ -241,9 +312,20 @@ export class Tour {
 				}
 				if (this.#state.status !== "closed") this.#setStatus("waiting");
 			} else {
+				this.#finishStreaming();
+				this.#setActivity(undefined);
 				this.#setStatus("closed", event.error);
 			}
 		}
+	}
+
+	/** Settles messages cut off mid-stream, for example by an interrupt. */
+	#finishStreaming(): void {
+		for (const item of this.#streaming.values()) {
+			delete item.streaming;
+			this.#emit({ type: "item", item });
+		}
+		this.#streaming.clear();
 	}
 
 	#append(item: DistributiveOmit<TranscriptItem, "id">): TranscriptItem {
@@ -432,14 +514,20 @@ export class Tour {
 			defineTool({
 				name: "ask_quiz",
 				description:
-					"Put a question to the learner. Give choices for multiple choice, or none for a free-text answer. After calling it, end your turn: the answer arrives as the next message.",
+					"Put a question to the learner as a card in the conversation. Give choices for multiple choice, or none for a free-text answer. Only one question can be open at a time. After calling it, end your turn: the answer arrives as the next message, or a note that the learner moved on without answering.",
 				input: {
 					question: z.string(),
 					choices: z.array(z.string()).default([]),
 				},
 				handler: async ({ question, choices }) => {
+					const open = this.#openQuiz();
+					if (open) {
+						throw new Error(
+							`A question is already open and unanswered: ${JSON.stringify(open.question)}. It is on the learner's screen. End your turn and wait for the answer.`,
+						);
+					}
 					this.#append({ kind: "quiz", question, choices });
-					return "The learner now sees the question as a card. End your turn here with no further text; the answer arrives as the next message.";
+					return "The question is on the learner's screen as a card. Finish this turn now with a closing line of a few words, such as 'Over to you.' Do not call ask_quiz again and do not repeat the question. The answer arrives as the next message.";
 				},
 			}),
 		];
