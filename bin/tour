@@ -1,12 +1,19 @@
 #!/usr/bin/env node
-import { text } from "node:stream/consumers";
-import { EnvFileError, loadEnvFile } from "../src/env-file.ts";
-import {
-	parseArgs,
-	startTour,
-	USAGE,
-	UsageError,
-} from "../src/cli/start-tour.ts";
+// This file stays plain JavaScript with no static imports, so that it can
+// report an unsuitable Node before loading the TypeScript sources.
+const [major, minor] = process.versions.node.split(".").map(Number);
+if (major < 22 || (major === 22 && minor < 18)) {
+	console.error(
+		`tour: needs Node 22.18 or later to run, but this shell has ${process.version}. A project that pins an older Node hides the newer one; run tour from another directory with --cwd, or with a newer node on PATH.`,
+	);
+	process.exit(2);
+}
+
+const { text } = await import("node:stream/consumers");
+const { EnvFileError, loadEnvFile } = await import("../src/env-file.ts");
+const { parseArgs, startTour, USAGE, UsageError } = await import(
+	"../src/cli/start-tour.ts"
+);
 
 try {
 	const request = parseArgs(process.argv.slice(2), process.cwd());

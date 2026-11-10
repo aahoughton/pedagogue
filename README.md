@@ -25,13 +25,23 @@ your tailnet, set `PEDAGOGY_HOST` to include this machine's tailnet address and
 The daemon answers only on the addresses in `PEDAGOGY_HOST` and has no login,
 so list only addresses that your own machines can reach.
 
+To start the daemon at login, see [docs/launchd.md](docs/launchd.md).
+
 ## Start a tour
 
 - Open the daemon's URL in a browser and fill in the form, or
 - run `bin/tour --cwd <dir> "<what you want to understand>"`, which prints the
   tour's link, or
-- install `skills/tour` for your agent and put `bin/tour` on your `PATH`; then
-  "walk me through X" in a session starts a tour and gives you the link.
+- ask an agent that has the tour skill: "walk me through X" starts a tour and
+  gives you the link.
+
+To set up the last one for Claude Code, link the skill and the launcher from
+this checkout so they follow it:
+
+```sh
+ln -s "$(pwd)/skills/tour" ~/.claude/skills/tour
+ln -s "$(pwd)/bin/tour" ~/.local/bin/tour    # or any directory on your PATH
+```
 
 On the tour page, click a line number to select it, drag or Shift-click for a
 range, and Cmd/Ctrl-click to pick separate lines. The selection goes to the
