@@ -12,7 +12,7 @@ code without breaking its conventions.
   `permissions.ts` decides every tutor tool call.
 - `ui/` the browser code: plain ES modules and CSS, served as they are.
 - `src/cli/`, `bin/tour` the launcher.
-- `skills/tour/` the skill that tells an agent how to start a tour.
+- `skills/guided-explanation/` the skill that tells an agent how to start a tour.
 
 ## Commands
 

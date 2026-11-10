@@ -1,6 +1,6 @@
 ---
 
-name: tour
+name: guided-explanation
 description: Start a guided tour in the pedagogue app, where a tutor agent walks the user through a topic with code panes, questions and quizzes in a browser page. Use when the user asks to be walked through, taught, or quizzed on something ("explain how X works", "walk me through this branch", "quiz me on Y") and the topic spans several files or ideas. Answer in the conversation instead when a few paragraphs would do.
 ---
 

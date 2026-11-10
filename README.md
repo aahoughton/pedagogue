@@ -74,7 +74,7 @@ you the link. For Claude Code, link the skill and the launcher from your
 checkout:
 
 ```sh
-ln -s "$(pwd)/skills/tour" ~/.claude/skills/tour
+ln -s "$(pwd)/skills/guided-explanation" ~/.claude/skills/guided-explanation
 ln -s "$(pwd)/bin/tour" ~/.local/bin/tour    # any directory on your PATH
 ```
 
