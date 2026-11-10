@@ -360,7 +360,7 @@ test("a restored tour is dormant and wakes its tutor with the saved conversation
 	assert.equal(record.resumeToken, agent.resumeToken);
 
 	const driver = new FakeDriver();
-	const restored = Tour.restore(record, { driver });
+	const restored = Tour.restore(record, { driver, scratchDir: "/tmp/scratch" });
 	assert.equal(restored.awake, false);
 	assert.equal(driver.sessions.length, 0);
 	assert.equal(restored.state.status, "waiting");
@@ -396,7 +396,10 @@ test("when the conversation cannot be restored a fresh tutor gets a recap and th
 	await agent.emit({ type: "turn_end", status: "completed" });
 
 	const driver = new FakeDriver();
-	const restored = Tour.restore(tour.record(), { driver });
+	const restored = Tour.restore(tour.record(), {
+		driver,
+		scratchDir: "/tmp/scratch",
+	});
 	restored.input({ type: "message", text: "go on" });
 	await tick();
 	const stale = driver.sessions[0] as FakeSession;
@@ -462,7 +465,10 @@ test("a tutor that cannot start leaves a notice and the tour usable", async () =
 			return driver.open(options);
 		},
 	};
-	const restored = Tour.restore(tour.record(), { driver: flaky });
+	const restored = Tour.restore(tour.record(), {
+		driver: flaky,
+		scratchDir: "/tmp/scratch",
+	});
 	restored.input({ type: "message", text: "hello" });
 	await tick();
 	const notice = restored.state.transcript.at(-1);
@@ -496,7 +502,10 @@ test("every change asks for a save, and closing ends the tour for good", async (
 	});
 	assert.ok(saves > before);
 	tour.close();
-	const restored = Tour.restore(tour.record(), { driver });
+	const restored = Tour.restore(tour.record(), {
+		driver,
+		scratchDir: "/tmp/scratch",
+	});
 	assert.equal(restored.state.status, "closed");
 	assert.throws(() => restored.input({ type: "message", text: "hi" }), /ended/);
 });

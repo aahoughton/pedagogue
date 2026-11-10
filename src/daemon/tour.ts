@@ -112,7 +112,6 @@ export interface TourRecord {
 	version: 1;
 	state: TourState;
 	brief: string;
-	scratchDir: string;
 	/** The tutor conversation to continue, as reported by the driver. */
 	resumeToken?: string;
 	createdAt: string;
@@ -130,6 +129,7 @@ export interface TourSettings {
 export interface TourOptions extends TourSettings {
 	id: string;
 	cwd: string;
+	/** The only directory the tutor may write to. */
 	scratchDir: string;
 	brief: string;
 }
@@ -170,7 +170,7 @@ export class Tour {
 	/** Starts the tutor and hands it the brief. Rejects if the tutor cannot start. */
 	static async open(options: TourOptions): Promise<Tour> {
 		const now = new Date().toISOString();
-		const tour = new Tour(options, {
+		const tour = new Tour(options, options.scratchDir, {
 			version: 1,
 			state: {
 				id: options.id,
@@ -182,7 +182,6 @@ export class Tour {
 				transcript: [],
 			},
 			brief: options.brief,
-			scratchDir: options.scratchDir,
 			createdAt: now,
 			updatedAt: now,
 		});
@@ -193,25 +192,32 @@ export class Tour {
 	}
 
 	/** Brings back a saved tour as dormant. A turn that was in progress is over. */
-	static restore(record: TourRecord, settings: TourSettings): Tour {
+	static restore(
+		record: TourRecord,
+		settings: TourSettings & { scratchDir: string },
+	): Tour {
 		const state = structuredClone(record.state);
 		if (state.status === "working") state.status = "waiting";
 		delete state.activity;
 		for (const item of state.transcript) {
 			if (item.kind === "tutor") delete item.streaming;
 		}
-		const tour = new Tour(settings, { ...record, state });
+		const tour = new Tour(settings, settings.scratchDir, { ...record, state });
 		tour.#nextId =
 			1 +
 			Math.max(0, ...state.transcript.map((item) => Number(item.id.slice(1))));
 		return tour;
 	}
 
-	private constructor(settings: TourSettings, record: TourRecord) {
+	private constructor(
+		settings: TourSettings,
+		scratchDir: string,
+		record: TourRecord,
+	) {
 		this.#settings = settings;
+		this.#scratchDir = scratchDir;
 		this.#state = record.state;
 		this.#brief = record.brief;
-		this.#scratchDir = record.scratchDir;
 		this.#resumeToken = record.resumeToken;
 		this.#createdAt = record.createdAt;
 		this.#updatedAt = record.updatedAt;
@@ -223,7 +229,6 @@ export class Tour {
 			version: 1,
 			state: this.state,
 			brief: this.#brief,
-			scratchDir: this.#scratchDir,
 			resumeToken: this.#resumeToken,
 			createdAt: this.#createdAt,
 			updatedAt: this.#updatedAt,

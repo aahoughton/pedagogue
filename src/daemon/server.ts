@@ -133,7 +133,14 @@ export function createApp(options: AppOptions): App {
 		onChange: (tour: Tour) => options.store.schedule(tour),
 	};
 	for (const record of options.records ?? []) {
-		tours.set(record.state.id, Tour.restore(record, settings));
+		const id = record.state.id;
+		tours.set(
+			id,
+			Tour.restore(record, {
+				...settings,
+				scratchDir: options.store.scratchDir(id),
+			}),
+		);
 	}
 	const sockets = new WebSocketServer({ noServer: true });
 	const allowedHosts = new Set(
