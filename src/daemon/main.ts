@@ -1,12 +1,21 @@
+import { EnvFileError, envFilePath, loadEnvFile } from "../env-file.ts";
 import { ClaudeDriver } from "./claude-driver.ts";
 import { allowedHosts, ConfigError, readConfig } from "./config.ts";
 import { createApp, listen } from "./server.ts";
 
 let config: ReturnType<typeof readConfig>;
 try {
+	const loaded = loadEnvFile(process.env);
+	console.log(
+		loaded
+			? `pedagogy: settings from ${loaded}`
+			: `pedagogy: no settings file at ${envFilePath(process.env)}, using the environment`,
+	);
 	config = readConfig(process.env);
 } catch (error) {
-	if (!(error instanceof ConfigError)) throw error;
+	if (!(error instanceof ConfigError || error instanceof EnvFileError)) {
+		throw error;
+	}
 	console.error(`pedagogy: ${error.message}`);
 	process.exit(2);
 }

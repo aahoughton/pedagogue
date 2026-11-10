@@ -10,22 +10,20 @@ Needs Node 26 and pnpm (`mise install`), and an Anthropic API key.
 
 ```sh
 pnpm install
-ANTHROPIC_API_KEY=... pnpm start
+mkdir -p ~/.config/pedagogy
+install -m 600 env.example ~/.config/pedagogy/env   # then add your API key
+pnpm start
 ```
+
+Settings live in `~/.config/pedagogy/env` (or the file `PEDAGOGY_ENV_FILE`
+names). Variables set in the shell win over the file. The file must be mode
+600 because it holds the key.
 
 The daemon listens on `127.0.0.1:4270`. To use tours from another machine on
-your tailnet, add this machine's tailnet address and say what links should
-look like:
-
-```sh
-PEDAGOGY_HOST=127.0.0.1,100.x.y.z \
-PEDAGOGY_PUBLIC_URL=http://desk.your-tailnet.ts.net:4270 \
-ANTHROPIC_API_KEY=... pnpm start
-```
-
+your tailnet, set `PEDAGOGY_HOST` to include this machine's tailnet address and
+`PEDAGOGY_PUBLIC_URL` to what links should look like; `env.example` shows both.
 The daemon answers only on the addresses in `PEDAGOGY_HOST` and has no login,
 so list only addresses that your own machines can reach.
-`src/daemon/config.ts` documents every variable.
 
 ## Start a tour
 

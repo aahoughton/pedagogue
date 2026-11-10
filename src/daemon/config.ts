@@ -16,7 +16,8 @@ export interface Config {
 export class ConfigError extends Error {}
 
 /**
- * Reads the daemon's configuration from environment variables:
+ * Reads the daemon's configuration from environment variables, which main.ts
+ * fills from the env file first (see env-file.ts):
  *
  * - ANTHROPIC_API_KEY (required): the key every tutor runs on.
  * - PEDAGOGY_HOST: comma-separated addresses to listen on. Default 127.0.0.1.
@@ -31,7 +32,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
 	const apiKey = env.ANTHROPIC_API_KEY;
 	if (!apiKey) {
 		throw new ConfigError(
-			"ANTHROPIC_API_KEY is not set. Tutors run on an API key; set it and start again.",
+			"ANTHROPIC_API_KEY is not set. Tutors run on an API key; put it in the settings file or the environment and start again.",
 		);
 	}
 	const hosts = (env.PEDAGOGY_HOST ?? "127.0.0.1")

@@ -7,7 +7,8 @@ Starts a tour on the pedagogy daemon and prints its link.
 
   --cwd <dir>   directory the tutor explains (default: current directory)
 
-The daemon is reached at $PEDAGOGY_URL (default http://127.0.0.1:4270).`;
+The daemon is reached at $PEDAGOGY_URL (default http://127.0.0.1:4270), which
+can also be set in ~/.config/pedagogy/env.`;
 
 export class UsageError extends Error {}
 
