@@ -196,6 +196,18 @@ body.tour {
 .code-view .line.highlight {
 	background: var(--highlight);
 }
+.code-view .line.flash {
+	animation: flash 1.6s ease-out;
+}
+@keyframes flash {
+	from {
+		box-shadow: inset 4px 0 0 var(--accent);
+		background: var(--selected);
+	}
+	to {
+		box-shadow: inset 4px 0 0 transparent;
+	}
+}
 .code-view .line.selected {
 	background: var(--selected);
 }

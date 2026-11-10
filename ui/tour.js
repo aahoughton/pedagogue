@@ -1,7 +1,13 @@
 import hljs from "/vendor/highlight.js";
 import { marked } from "/vendor/marked.js";
 import DOMPurify from "/vendor/purify.js";
-import { compressLines, languageFor, splitHighlightedLines } from "./lines.js";
+import {
+	compressLines,
+	languageFor,
+	paneForPath,
+	parseLineLink,
+	splitHighlightedLines,
+} from "./lines.js";
 
 const $ = (id) => document.getElementById(id);
 const tourId = location.pathname.split("/").pop();
@@ -380,6 +386,54 @@ document.addEventListener("mouseup", () => {
 	if (selection) selection.dragging = false;
 });
 $("selection-clear").addEventListener("click", clearSelection);
+
+// Links. The tutor writes references to code as links such as
+// "cmd/hub.go#L12-L20"; clicking one brings those lines to the middle of their
+// pane. Other links open in a new tab so the tour stays put.
+
+function jumpToLines({ path, start, end }) {
+	const pane = paneForPath(state.panes, path);
+	if (!pane) {
+		notice(`${path} is not open in a pane. Ask the tutor to show it.`);
+		return;
+	}
+	state.focus = pane.id;
+	renderTabs();
+	const element = paneElement(pane.id);
+	const lines = [];
+	for (let n = start; n <= end; n++) {
+		const line = element.querySelector(`.line[data-line="${n}"]`);
+		if (line) lines.push(line);
+	}
+	if (lines.length === 0) {
+		notice(`${pane.path} has no line ${start}.`);
+		return;
+	}
+	lines[Math.floor((lines.length - 1) / 2)].scrollIntoView({ block: "center" });
+	for (const line of lines) {
+		line.classList.remove("flash");
+		void line.offsetWidth; // restart the animation on a repeated click
+		line.classList.add("flash");
+	}
+}
+
+for (const area of [$("transcript"), $("panes")]) {
+	area.addEventListener("click", (event) => {
+		const link = event.target.closest("a[href]");
+		if (!link) return;
+		const href = link.getAttribute("href");
+		const target = parseLineLink(href);
+		if (target) {
+			event.preventDefault();
+			jumpToLines(target);
+		} else if (/^https?:/i.test(href)) {
+			link.target = "_blank";
+			link.rel = "noopener";
+		} else {
+			event.preventDefault();
+		}
+	});
+}
 
 // Transcript
 

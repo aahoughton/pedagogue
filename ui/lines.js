@@ -83,3 +83,33 @@ export function compressLines(lines) {
 	}
 	return parts.join(",");
 }
+
+/**
+ * Reads a link to lines of a file, written the way GitHub does:
+ * "src/hub.go#L12" or "src/hub.go#L12-L20" (the second L is optional).
+ * Returns undefined for any other link.
+ */
+export function parseLineLink(href) {
+	const match = /^([^#?]+)#L(\d+)(?:-L?(\d+))?$/.exec(href);
+	if (!match || /^[a-z][a-z0-9+.-]*:/i.test(match[1])) return undefined;
+	const start = Number(match[2]);
+	const end = Number(match[3] ?? match[2]);
+	if (start < 1 || end < start) return undefined;
+	let path = match[1];
+	try {
+		path = decodeURIComponent(path);
+	} catch {}
+	return { path: path.replace(/^\.?\//, ""), start, end };
+}
+
+/**
+ * The code pane a path refers to: an exact match on the pane's path, or else
+ * the only pane whose path ends with it (so "hub.go" finds "cmd/hub.go").
+ */
+export function paneForPath(panes, path) {
+	const code = panes.filter((pane) => pane.kind === "code");
+	const exact = code.find((pane) => pane.path === path);
+	if (exact) return exact;
+	const suffix = code.filter((pane) => pane.path.endsWith(`/${path}`));
+	return suffix.length === 1 ? suffix[0] : undefined;
+}
