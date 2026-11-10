@@ -37,9 +37,11 @@ export interface Selection {
 	lines: number[];
 }
 
+/** `at` is when the item was added, as an ISO time. Items saved before it existed have none. */
 export type TranscriptItem =
 	| {
 			id: string;
+			at?: string;
 			kind: "tutor";
 			text: string;
 			/** True while the tutor is still writing this message. */
@@ -47,14 +49,16 @@ export type TranscriptItem =
 	  }
 	| {
 			id: string;
+			at?: string;
 			kind: "learner";
 			text: string;
 			selection?: { path: string; ranges: LineRange[] };
 	  }
 	/** A message from the daemon itself, such as a tutor that failed to start. */
-	| { id: string; kind: "notice"; text: string }
+	| { id: string; at?: string; kind: "notice"; text: string }
 	| {
 			id: string;
+			at?: string;
 			kind: "quiz";
 			question: string;
 			choices: string[];
@@ -87,7 +91,8 @@ export interface TourState {
 
 /** An incremental change to a TourState, applied in order by every viewer. */
 export type TourEvent =
-	| { type: "snapshot"; state: TourState }
+	/** `createdAt` is when the tour started, as an ISO time. */
+	| { type: "snapshot"; state: TourState; createdAt: string }
 	| { type: "pane"; pane: Pane }
 	| { type: "pane_closed"; id: string }
 	| { type: "focus"; id: string }
@@ -254,7 +259,11 @@ export class Tour {
 
 	/** Calls `listener` with a snapshot, then with every later event. Returns an unsubscribe function. */
 	subscribe(listener: (event: TourEvent) => void): () => void {
-		listener({ type: "snapshot", state: this.state });
+		listener({
+			type: "snapshot",
+			state: this.state,
+			createdAt: this.#createdAt,
+		});
 		this.#subscribers.add(listener);
 		return () => this.#subscribers.delete(listener);
 	}
@@ -565,8 +574,12 @@ export class Tour {
 		this.#streaming.clear();
 	}
 
-	#append(item: DistributiveOmit<TranscriptItem, "id">): TranscriptItem {
-		const full = { ...item, id: `t${this.#nextId++}` } as TranscriptItem;
+	#append(item: DistributiveOmit<TranscriptItem, "id" | "at">): TranscriptItem {
+		const full = {
+			...item,
+			id: `t${this.#nextId++}`,
+			at: new Date().toISOString(),
+		} as TranscriptItem;
 		this.#state.transcript.push(full);
 		this.#emit({ type: "item", item: full });
 		return full;

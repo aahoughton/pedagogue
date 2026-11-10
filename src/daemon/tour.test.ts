@@ -273,6 +273,7 @@ test("streamed text grows one transcript item and settles on the final text", as
 	const growing = tour.state.transcript.at(-1);
 	assert.deepEqual(growing, {
 		id: growing?.id,
+		at: growing?.at,
 		kind: "tutor",
 		text: "Line two",
 		streaming: true,
@@ -283,6 +284,7 @@ test("streamed text grows one transcript item and settles on the final text", as
 	assert.equal(tour.state.transcript.length, 1);
 	assert.deepEqual(tour.state.transcript[0], {
 		id: growing?.id,
+		at: growing?.at,
 		kind: "tutor",
 		text: "Line two.",
 	});
@@ -299,6 +301,7 @@ test("a message cut off mid-stream is settled when the turn ends", async () => {
 	await agent.emit({ type: "turn_end", status: "interrupted" });
 	assert.deepEqual(tour.state.transcript.at(-1), {
 		id: "t1",
+		at: tour.state.transcript.at(-1)?.at,
 		kind: "tutor",
 		text: "Half a sen",
 	});
@@ -348,6 +351,42 @@ test("a message sent instead of an answer skips the open question", async () => 
 	await agent.call("ask_quiz", { question: "Another?" });
 });
 
+test("transcript items carry the time they were added and the snapshot the tour's start", async () => {
+	const before = Date.now();
+	const { tour, agent, events } = await openTour();
+	await agent.emit({ type: "text", text: "Hello." });
+	tour.input({ type: "message", text: "hi" });
+	const after = Date.now();
+
+	const times = tour.state.transcript.map((item) => Date.parse(item.at ?? ""));
+	assert.equal(times.length, 2);
+	for (const time of times) assert.ok(time >= before && time <= after);
+
+	const snapshot = events[0];
+	assert.equal(snapshot?.type, "snapshot");
+	assert.equal(
+		snapshot?.type === "snapshot" && snapshot.createdAt,
+		tour.record().createdAt,
+	);
+});
+
+test("a tour saved before items had times still loads", async () => {
+	const { tour, agent } = await openTour();
+	await agent.emit({ type: "text", text: "Hello." });
+	const record = JSON.parse(JSON.stringify(tour.record()));
+	for (const item of record.state.transcript) delete item.at;
+
+	const restored = Tour.restore(record, {
+		driver: new FakeDriver(),
+		scratchDir: "/tmp/scratch",
+	});
+	assert.deepEqual(restored.state.transcript, [
+		{ id: "t1", kind: "tutor", text: "Hello." },
+	]);
+	restored.input({ type: "message", text: "go on" });
+	assert.ok(restored.state.transcript[1]?.at);
+});
+
 async function tick(): Promise<void> {
 	await new Promise((resolve) => setImmediate(resolve));
 }
@@ -365,7 +404,12 @@ test("a restored tour is dormant and wakes its tutor with the saved conversation
 	assert.equal(driver.sessions.length, 0);
 	assert.equal(restored.state.status, "waiting");
 	assert.deepEqual(restored.state.transcript, [
-		{ id: "t1", kind: "tutor", text: "Half" },
+		{
+			id: "t1",
+			at: record.state.transcript[0].at,
+			kind: "tutor",
+			text: "Half",
+		},
 	]);
 	assert.equal(restored.state.panes.length, 1);
 
