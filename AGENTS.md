@@ -64,9 +64,10 @@ Run all four before committing. Use these scripts, not the tools directly.
 
 ## Trying changes by hand
 
-A real tutor needs `ANTHROPIC_API_KEY` and costs money per tour. To try the
-daemon without touching a running one or its saved tours, use another port
-and data directory:
+A real tutor needs `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` and uses
+paid API tokens or subscription usage per tour. To try the daemon without
+touching a running one or its saved tours, use another port and data
+directory:
 
 ```sh
 PEDAGOGUE_PORT=4273 PEDAGOGUE_HOST=127.0.0.1 \

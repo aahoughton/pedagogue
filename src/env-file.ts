@@ -16,7 +16,7 @@ export function envFilePath(env: NodeJS.ProcessEnv): string {
  * Loads KEY=value settings from the env file into `process.env`. Variables that
  * are already set keep their value. Returns the path loaded, or undefined when
  * the default file does not exist. A file named by PEDAGOGUE_ENV_FILE must exist.
- * The file can hold an API key, so one that other users can read is refused.
+ * The file can hold a credential, so one that other users can read is refused.
  */
 export function loadEnvFile(env: NodeJS.ProcessEnv): string | undefined {
 	const path = envFilePath(env);

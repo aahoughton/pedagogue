@@ -2,8 +2,31 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { allowedHosts, ConfigError, readConfig } from "./config.ts";
 
-test("refuses to start without an API key", () => {
+test("refuses to start without a credential", () => {
 	assert.throws(() => readConfig({}), ConfigError);
+	assert.throws(
+		() => readConfig({ ANTHROPIC_API_KEY: "", CLAUDE_CODE_OAUTH_TOKEN: "" }),
+		/Neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set/,
+	);
+});
+
+test("runs tutors on an API key or on a subscription token", () => {
+	assert.deepEqual(readConfig({ ANTHROPIC_API_KEY: "k" }).credential, {
+		kind: "apiKey",
+		value: "k",
+	});
+	assert.deepEqual(
+		readConfig({ ANTHROPIC_API_KEY: "", CLAUDE_CODE_OAUTH_TOKEN: "t" })
+			.credential,
+		{ kind: "subscriptionToken", value: "t" },
+	);
+});
+
+test("refuses to start with both an API key and a subscription token", () => {
+	assert.throws(
+		() => readConfig({ ANTHROPIC_API_KEY: "k", CLAUDE_CODE_OAUTH_TOKEN: "t" }),
+		/both set/,
+	);
 });
 
 test("defaults to loopback on port 4270", () => {

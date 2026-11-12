@@ -42,7 +42,9 @@ on another machine.
 - Node 22.18 or later and pnpm. With [mise](https://mise.jdx.dev),
   `mise install` gets the versions this repository pins.
 - An Anthropic API key. Tutors run on it and usage is billed to it; a tutor
-  reads a fair amount of code with a large model, so a tour is not free.
+  reads a fair amount of code with a large model, so a tour is not free. To
+  run tutors on your own Claude subscription instead, see
+  [Configuration](#configuration).
 - macOS or Linux. Developed on macOS; used with Safari and Firefox.
 
 ## Quick start
@@ -109,20 +111,29 @@ anything but loopback.
 
 ## Configuration
 
-Settings are read from `~/.config/pedagogue/env` (mode 600; it holds the key),
-then from the environment, which wins.
+Settings are read from `~/.config/pedagogue/env` (mode 600; it holds the
+credential), then from the environment, which wins.
 
-| Variable                 | Default                      | Meaning                                                                             |
-| ------------------------ | ---------------------------- | ----------------------------------------------------------------------------------- |
-| `ANTHROPIC_API_KEY`      | required                     | The key tutors run on                                                               |
-| `PEDAGOGUE_HOST`         | `127.0.0.1`                  | Comma-separated addresses to listen on                                              |
-| `PEDAGOGUE_PORT`         | `4270`                       | Port                                                                                |
-| `PEDAGOGUE_PUBLIC_URL`   | `http://<first host>:<port>` | Base of the links handed out                                                        |
-| `PEDAGOGUE_DATA_DIR`     | `~/.local/share/pedagogue`   | Saved tours and tutor scratch files                                                 |
-| `PEDAGOGUE_IDLE_MINUTES` | `15`                         | How long a tutor waits for you before its process stops; your next message wakes it |
-| `PEDAGOGUE_MODEL`        | the Agent SDK's default      | Model for tutors                                                                    |
-| `PEDAGOGUE_URL`          | `http://127.0.0.1:4270`      | Where `bin/tour` finds the daemon                                                   |
-| `PEDAGOGUE_ENV_FILE`     | `~/.config/pedagogue/env`    | A different settings file                                                           |
+| Variable                  | Default                      | Meaning                                                                             |
+| ------------------------- | ---------------------------- | ----------------------------------------------------------------------------------- |
+| `ANTHROPIC_API_KEY`       | one of these two is required | The API key tutors run on                                                           |
+| `CLAUDE_CODE_OAUTH_TOKEN` | one of these two is required | A Claude subscription token tutors run on, in place of the API key                  |
+| `PEDAGOGUE_HOST`          | `127.0.0.1`                  | Comma-separated addresses to listen on                                              |
+| `PEDAGOGUE_PORT`          | `4270`                       | Port                                                                                |
+| `PEDAGOGUE_PUBLIC_URL`    | `http://<first host>:<port>` | Base of the links handed out                                                        |
+| `PEDAGOGUE_DATA_DIR`      | `~/.local/share/pedagogue`   | Saved tours and tutor scratch files                                                 |
+| `PEDAGOGUE_IDLE_MINUTES`  | `15`                         | How long a tutor waits for you before its process stops; your next message wakes it |
+| `PEDAGOGUE_MODEL`         | the Agent SDK's default      | Model for tutors                                                                    |
+| `PEDAGOGUE_URL`           | `http://127.0.0.1:4270`      | Where `bin/tour` finds the daemon                                                   |
+| `PEDAGOGUE_ENV_FILE`      | `~/.config/pedagogue/env`    | A different settings file                                                           |
+
+Set exactly one of `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN`; the
+daemon stops at startup if both or neither is set. `claude setup-token` prints
+a subscription token (it needs a Claude Pro, Max, Team or Enterprise plan),
+and tours then count against that plan's usage limits. Use a token only for
+your own account on a daemon you run for yourself: Anthropic does not allow
+offering claude.ai login or subscription rate limits to other people through
+a tool built on the Agent SDK.
 
 To start the daemon at login on macOS, see [docs/launchd.md](docs/launchd.md).
 

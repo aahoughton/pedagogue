@@ -9,6 +9,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import { activityLabel } from "./activity.ts";
 import { Channel } from "./channel.ts";
+import type { Credential } from "./config.ts";
 import type {
 	AgentDriver,
 	AgentEvent,
@@ -21,8 +22,32 @@ const TOOL_SERVER = "tour";
 const BUILT_IN_TOOLS = ["Read", "Glob", "Grep", "Write", "Edit"];
 
 export interface ClaudeDriverOptions {
-	apiKey: string;
+	credential: Credential;
 	model?: string;
+}
+
+const CREDENTIAL_VARIABLES = {
+	apiKey: "ANTHROPIC_API_KEY",
+	subscriptionToken: "CLAUDE_CODE_OAUTH_TOKEN",
+} as const;
+
+/**
+ * The environment a tutor process starts with: `base` with `credential` as its
+ * only Anthropic credential. Claude Code ranks ANTHROPIC_AUTH_TOKEN and
+ * ANTHROPIC_API_KEY above a subscription token, so any of the three left over
+ * from the daemon's environment is removed.
+ */
+export function tutorEnv(
+	base: NodeJS.ProcessEnv,
+	credential: Credential,
+): NodeJS.ProcessEnv {
+	const {
+		ANTHROPIC_API_KEY: _key,
+		ANTHROPIC_AUTH_TOKEN: _bearer,
+		CLAUDE_CODE_OAUTH_TOKEN: _token,
+		...rest
+	} = base;
+	return { ...rest, [CREDENTIAL_VARIABLES[credential.kind]]: credential.value };
 }
 
 /** Hosts each tutor as its own Claude Code subprocess through the Agent SDK. */
@@ -30,7 +55,9 @@ export class ClaudeDriver implements AgentDriver {
 	readonly #options: ClaudeDriverOptions;
 
 	constructor(options: ClaudeDriverOptions) {
-		if (!options.apiKey) throw new Error("ClaudeDriver needs an API key");
+		if (!options.credential.value) {
+			throw new Error("ClaudeDriver needs a credential");
+		}
 		this.#options = options;
 	}
 
@@ -89,7 +116,7 @@ export class ClaudeDriver implements AgentDriver {
 				settingSources: [],
 				strictMcpConfig: true,
 				includePartialMessages: true,
-				env: { ...process.env, ANTHROPIC_API_KEY: this.#options.apiKey },
+				env: tutorEnv(process.env, this.#options.credential),
 			},
 		});
 

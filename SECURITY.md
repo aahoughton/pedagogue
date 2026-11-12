@@ -8,7 +8,8 @@ what it protects, what it does not, and how to report a problem.
 **The daemon has no login.** Anyone who can reach its port can:
 
 - start a tour in any directory the daemon's user can read, which lets them
-  read those files through a tutor, at the cost of your API key;
+  read those files through a tutor, at the cost of your API key or
+  subscription usage;
 - open any existing tour and read its panes and conversation, which include
   the contents of the files the tutor showed.
 
@@ -41,8 +42,8 @@ key. It does not load your Claude Code settings, hooks or MCP servers.
 - Every tool call is checked by the daemon, with symlinks resolved, and
   refused otherwise. The check is `src/daemon/permissions.ts`.
 
-**Anything a tutor reads is sent to Anthropic's API**, under the terms of your
-API account. Do not start a tour in a directory whose contents you may not
+**Anything a tutor reads is sent to Anthropic's API**, under the terms of the
+account your API key or subscription token belongs to. Do not start a tour in a directory whose contents you may not
 send there.
 
 ## Untrusted content in the directory being explained
@@ -61,7 +62,7 @@ What such text can do is change what the tutor shows you:
 
 ## What is stored
 
-- `~/.config/pedagogue/env` holds your API key. The daemon refuses to read it
+- `~/.config/pedagogue/env` holds your API key or subscription token. The daemon refuses to read it
   unless only you can read it.
 - `~/.local/share/pedagogue` holds every tour unencrypted: its conversation
   and the full text of each file the tutor showed.

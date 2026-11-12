@@ -3,8 +3,14 @@ import { join } from "node:path";
 
 export const DEFAULT_PORT = 4270;
 
+/** What tutors authenticate with: an API key or a Claude subscription token. */
+export interface Credential {
+	kind: "apiKey" | "subscriptionToken";
+	value: string;
+}
+
 export interface Config {
-	apiKey: string;
+	credential: Credential;
 	/** Addresses to listen on. */
 	hosts: string[];
 	port: number;
@@ -21,7 +27,10 @@ export class ConfigError extends Error {}
  * Reads the daemon's configuration from environment variables, which main.ts
  * fills from the env file first (see env-file.ts):
  *
- * - ANTHROPIC_API_KEY (required): the key every tutor runs on.
+ * - ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN (exactly one required): what
+ *   every tutor runs on. The first is an Anthropic API key; the second is a
+ *   Claude subscription token printed by `claude setup-token`. An empty value
+ *   counts as unset.
  * - PEDAGOGUE_HOST: comma-separated addresses to listen on. Default 127.0.0.1.
  *   Add the machine's tailnet address to reach tours from another machine.
  * - PEDAGOGUE_PORT: default 4270.
@@ -33,12 +42,7 @@ export class ConfigError extends Error {}
  * - PEDAGOGUE_MODEL: model for tutors. Default: the Agent SDK's default.
  */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
-	const apiKey = env.ANTHROPIC_API_KEY;
-	if (!apiKey) {
-		throw new ConfigError(
-			"ANTHROPIC_API_KEY is not set. Tutors run on an API key; put it in the settings file or the environment and start again.",
-		);
-	}
+	const credential = readCredential(env);
 	const hosts = (env.PEDAGOGUE_HOST ?? "127.0.0.1")
 		.split(",")
 		.map((host) => host.trim())
@@ -72,7 +76,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
 	}
 
 	return {
-		apiKey,
+		credential,
 		hosts,
 		port,
 		publicUrl,
@@ -80,6 +84,21 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
 		idleMs: idleMinutes * 60_000,
 		model: env.PEDAGOGUE_MODEL,
 	};
+}
+
+function readCredential(env: NodeJS.ProcessEnv): Credential {
+	const apiKey = env.ANTHROPIC_API_KEY;
+	const token = env.CLAUDE_CODE_OAUTH_TOKEN;
+	if (apiKey && token) {
+		throw new ConfigError(
+			"ANTHROPIC_API_KEY and CLAUDE_CODE_OAUTH_TOKEN are both set. Tutors run on one of them; remove the other from the settings file or the environment and start again.",
+		);
+	}
+	if (apiKey) return { kind: "apiKey", value: apiKey };
+	if (token) return { kind: "subscriptionToken", value: token };
+	throw new ConfigError(
+		"Neither ANTHROPIC_API_KEY nor CLAUDE_CODE_OAUTH_TOKEN is set. Tutors run on an API key or a Claude subscription token; put one in the settings file or the environment and start again.",
+	);
 }
 
 /** Hostnames requests may be addressed to: every listen address and the public URL's host. */

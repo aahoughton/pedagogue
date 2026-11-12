@@ -22,6 +22,12 @@ try {
 	process.exit(2);
 }
 
+console.log(
+	config.credential.kind === "apiKey"
+		? "pedagogue: tutors run on an API key"
+		: "pedagogue: tutors run on a Claude subscription token",
+);
+
 const store = new TourStore(config.dataDir);
 const { records, problems } = await store.loadAll();
 for (const problem of problems) {
@@ -30,7 +36,10 @@ for (const problem of problems) {
 console.log(`pedagogue: ${records.length} saved tours in ${config.dataDir}`);
 
 const app = createApp({
-	driver: new ClaudeDriver({ apiKey: config.apiKey, model: config.model }),
+	driver: new ClaudeDriver({
+		credential: config.credential,
+		model: config.model,
+	}),
 	store,
 	records,
 	idleMs: config.idleMs,
