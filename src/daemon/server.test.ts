@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -11,9 +11,10 @@ import { TourStore } from "./store.ts";
 const root = mkdtempSync(join(tmpdir(), "pedagogue-server-test-"));
 writeFileSync(join(root, "a.txt"), "one\ntwo\n");
 const driver = new FakeDriver();
+const store = new TourStore(join(root, "data"), { delayMs: 10 });
 const app: App = createApp({
 	driver,
-	store: new TourStore(join(root, "data")),
+	store,
 	publicUrl: "http://desk.example:4270",
 	allowedHosts: ["127.0.0.1"],
 	build: { version: "1.2.3", sha: "abc1234", dirty: false },
@@ -178,13 +179,40 @@ test("requests for another host or from another origin are refused", async () =>
 	assert.equal(outcome, "refused");
 });
 
-test("deleting a tour closes it and its agent", async () => {
+test("deleting a tour stops its agent and removes it for good", async () => {
 	const { id, agent } = await startTour();
+	const dir = join(root, "data", "tours", id);
+	await store.flush();
+	assert.equal(existsSync(join(dir, "tour.json")), true);
+
 	const response = await fetch(`${base}/tours/${id}`, { method: "DELETE" });
 	assert.equal(response.status, 200);
 	assert.equal(agent.closed, true);
-	assert.equal(app.tours.get(id)?.state.status, "closed");
-	assert.equal((await fetch(`${base}/tours/zzzz`)).status, 404);
+	assert.equal((await fetch(`${base}/tours/${id}`)).status, 404);
+	const { tours } = (await (await fetch(`${base}/tours`)).json()) as {
+		tours: Array<{ id: string }>;
+	};
+	assert.equal(
+		tours.some((tour) => tour.id === id),
+		false,
+	);
+	// Closing the tour changed it; that change must not save it back.
+	await new Promise((resolve) => setTimeout(resolve, 50));
+	await store.flush();
+	assert.equal(existsSync(dir), false);
+
+	const again = await fetch(`${base}/tours/${id}`, { method: "DELETE" });
+	assert.equal(again.status, 404);
+});
+
+test("a delete from another origin is refused", async () => {
+	const { id } = await startTour();
+	const response = await fetch(`${base}/tours/${id}`, {
+		method: "DELETE",
+		headers: { origin: "http://evil.example" },
+	});
+	assert.equal(response.status, 403);
+	assert.equal(app.tours.has(id), true);
 });
 
 test("only the listed assets are served", async () => {

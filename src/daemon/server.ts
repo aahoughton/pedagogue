@@ -137,7 +137,10 @@ export function createApp(options: AppOptions): App {
 	const settings = {
 		driver: options.driver,
 		idleMs: options.idleMs,
-		onChange: (tour: Tour) => options.store.schedule(tour),
+		// A deleted tour is no longer in the map and must not be saved again.
+		onChange: (tour: Tour) => {
+			if (tours.get(tour.id) === tour) options.store.schedule(tour);
+		},
 	};
 	for (const record of options.records ?? []) {
 		const id = record.state.id;
@@ -251,8 +254,10 @@ export function createApp(options: AppOptions): App {
 			}
 			if (method === "DELETE") {
 				checkOrigin(request);
+				tours.delete(tour.id);
 				tour.close();
-				return sendJson(response, 200, { id: tour.id, status: "closed" });
+				await options.store.remove(tour.id);
+				return sendJson(response, 200, { id: tour.id, status: "deleted" });
 			}
 		}
 		throw new HttpError(404, `not found: ${method} ${pathname}`);

@@ -128,7 +128,27 @@ body.index ul {
 	list-style: none;
 }
 body.index li {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
 	margin: 12px 0;
+}
+body.index .entry {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+body.index .delete {
+	padding: 4px 6px;
+	border-color: transparent;
+	background: none;
+	color: var(--muted);
+	line-height: 0;
+}
+body.index .delete:hover,
+body.index .delete:focus-visible {
+	border-color: var(--border);
+	color: #d1242f;
 }
 body.index .meta {
 	color: var(--muted);

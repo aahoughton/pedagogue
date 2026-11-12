@@ -88,3 +88,20 @@ test("an empty data directory has no tours", async () => {
 		problems: [],
 	});
 });
+
+test("removing a tour deletes its directory and drops a waiting save", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "pedagogue-store-test-"));
+	const store = new TourStore(dir, { delayMs: 10 });
+	const tour = { id: "cccc3333", record: () => record("cccc3333", "gone") };
+	store.schedule(tour);
+	await store.flush();
+	mkdirSync(store.scratchDir("cccc3333"), { recursive: true });
+	writeFileSync(join(store.scratchDir("cccc3333"), "note.txt"), "x");
+
+	store.schedule(tour);
+	await store.remove("cccc3333");
+	await new Promise((resolve) => setTimeout(resolve, 30));
+	await store.flush();
+	assert.deepEqual(readdirSync(join(dir, "tours")), []);
+	assert.deepEqual((await store.loadAll()).records, []);
+});

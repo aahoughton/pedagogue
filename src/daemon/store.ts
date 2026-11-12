@@ -1,4 +1,11 @@
-import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	readdir,
+	readFile,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import type { TourRecord } from "./tour.ts";
 
@@ -43,6 +50,19 @@ export class TourStore {
 	async flush(): Promise<void> {
 		for (const id of [...this.#dirty.keys()]) void this.#write(id);
 		await Promise.all(this.#writes.values());
+	}
+
+	/**
+	 * Deletes a tour's saved record and its scratch directory. A save that is
+	 * waiting is dropped; the caller must not schedule the tour again.
+	 */
+	async remove(id: string): Promise<void> {
+		clearTimeout(this.#timers.get(id));
+		this.#timers.delete(id);
+		this.#dirty.delete(id);
+		await this.#writes.get(id);
+		this.#writes.delete(id);
+		await rm(join(this.#dir, id), { recursive: true, force: true });
 	}
 
 	#write(id: string): Promise<void> {

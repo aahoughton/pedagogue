@@ -21,7 +21,8 @@ You reply, select lines to ask about, and answer quizzes on the same page.
 - **Diagrams and more.** Mermaid diagrams, markdown tables, and sandboxed HTML
   for anything else worth drawing.
 - **Tours that last.** Tours are saved, listed, and resumed where you left
-  off, including after a restart.
+  off, including after a restart. The index page deletes the ones you are
+  done with.
 
 ## How it works
 
