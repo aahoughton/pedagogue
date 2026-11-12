@@ -12,6 +12,7 @@ import {
 	paneForPath,
 	parseLineLink,
 	splitHighlightedLines,
+	tabTitle,
 } from "./lines.js";
 
 const $ = (id) => document.getElementById(id);
@@ -56,7 +57,6 @@ function apply(event) {
 			createdAt = event.createdAt;
 			selection = undefined;
 			lastDay = undefined;
-			document.title = `${state.title} - pedagogue`;
 			$("title").textContent = state.title;
 			$("title").title = `${state.title}\n${state.cwd}`;
 			$("cwd").textContent = state.cwd;
@@ -178,6 +178,7 @@ function setStatus(status, error) {
 	$("input").disabled = closed;
 	$("send").disabled = closed;
 	setFavicon(status);
+	if (state) document.title = tabTitle(state.title, status);
 }
 
 let faviconTimer;

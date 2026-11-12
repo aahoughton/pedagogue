@@ -13,6 +13,7 @@ import {
 	paneForPath,
 	parseLineLink,
 	splitHighlightedLines,
+	tabTitle,
 } from "./lines.js";
 
 test("splitHighlightedLines reopens a span that crosses a line break", () => {
@@ -156,4 +157,10 @@ test("faviconHref is an SVG data URL that decodes to the icon", () => {
 test("the favicon file the pages load with is the waiting icon", () => {
 	const file = readFileSync(new URL("./favicon.svg", import.meta.url), "utf8");
 	assert.equal(file.trim(), faviconSvg("waiting"));
+});
+
+test("tabTitle marks the title only while the tutor works", () => {
+	assert.equal(tabTitle("Config", "working"), "(working) Config - pedagogue");
+	for (const status of ["waiting", "closed", "reconnecting"])
+		assert.equal(tabTitle("Config", status), "Config - pedagogue");
 });

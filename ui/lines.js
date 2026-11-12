@@ -175,3 +175,12 @@ export function faviconSvg(status, frame = 0) {
 export function faviconHref(status, frame = 0) {
 	return `data:image/svg+xml,${encodeURIComponent(faviconSvg(status, frame))}`;
 }
+
+/**
+ * The tour page's tab title. It starts with "(working)" while the tutor
+ * works, which shows the status in browsers that do not animate the icon.
+ */
+export function tabTitle(title, status) {
+	const prefix = status === "working" ? "(working) " : "";
+	return `${prefix}${title} - pedagogue`;
+}
