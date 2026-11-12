@@ -17,21 +17,23 @@ import {
 } from "./lines.js";
 
 const $ = (id) => document.getElementById(id);
-const tourId = location.pathname.split("/").pop();
+const walkthroughId = location.pathname.split("/").pop();
 
-/** Mirror of the daemon's TourState, rebuilt from a snapshot plus events. */
+/** Mirror of the daemon's WalkthroughState, rebuilt from a snapshot plus events. */
 let state;
 /** Lines the learner has marked: { paneId, lines: Set<number>, anchor: number }. */
 let selection;
 let socket;
-/** When the tour started, as an ISO time. */
+/** When the walkthrough started, as an ISO time. */
 let createdAt;
 /** The local day of the last message drawn, so a change of day gets a divider. */
 let lastDay;
 
 function connect() {
 	const scheme = location.protocol === "https:" ? "wss" : "ws";
-	socket = new WebSocket(`${scheme}://${location.host}/tours/${tourId}/ws`);
+	socket = new WebSocket(
+		`${scheme}://${location.host}/walkthroughs/${walkthroughId}/ws`,
+	);
 	socket.addEventListener("message", (message) =>
 		apply(JSON.parse(message.data)),
 	);
@@ -148,7 +150,7 @@ const DAY = new Intl.DateTimeFormat(undefined, {
 	year: "numeric",
 });
 
-/** Says when the tour started and how long ago its newest message arrived. */
+/** Says when the walkthrough started and how long ago its newest message arrived. */
 function renderTimes() {
 	if (!state) return;
 	const parts = [`started ${DATE_TIME.format(new Date(createdAt))}`];
@@ -232,7 +234,7 @@ function keepAtEnd(change) {
 }
 
 // The plan shows one line, the step in progress, until the learner opens it
-// to see every step. The browser keeps the choice, so it applies to every tour.
+// to see every step. The browser keeps the choice, so it applies to every walkthrough.
 const PLAN_OPEN_KEY = "pedagogue.planOpen";
 let planOpen = localStorage.getItem(PLAN_OPEN_KEY) === "1";
 
@@ -487,7 +489,7 @@ $("selection-clear").addEventListener("click", clearSelection);
 
 // Links. The tutor writes references to code as links such as
 // "cmd/hub.go#L12-L20"; clicking one brings those lines to the middle of their
-// pane. Other links open in a new tab so the tour stays put.
+// pane. Other links open in a new tab so the walkthrough stays put.
 
 function jumpToLines({ path, start, end }) {
 	const pane = paneForPath(state.panes, path);
@@ -674,7 +676,7 @@ $("input").addEventListener("keydown", (event) => {
 $("stop").addEventListener("click", () => send({ type: "interrupt" }));
 
 // The handle on the composer's top edge sets the input's height. The browser
-// keeps the height, so it applies to every tour until the learner resets it.
+// keeps the height, so it applies to every walkthrough until the learner resets it.
 const HEIGHT_KEY = "pedagogue.inputHeight";
 
 /** Gives the input the nearest height the side panel allows and returns it. */

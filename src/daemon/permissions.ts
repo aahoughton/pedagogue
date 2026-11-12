@@ -11,15 +11,15 @@ export interface Sandbox {
 	cwd: string;
 	/** Readable and writable. */
 	scratchDir: string;
-	/** Prefix of the tour's own tools, for example "mcp__tour__". */
+	/** Prefix of the walkthrough's own tools, for example "mcp__walkthrough__". */
 	toolPrefix: string;
 }
 
 /**
- * Decides whether a tutor may make a tool call: the tour's own tools always,
- * reads inside the tour directory or the scratch directory, writes inside the
+ * Decides whether a tutor may make a tool call: the walkthrough's own tools always,
+ * reads inside the walkthrough directory or the scratch directory, writes inside the
  * scratch directory, nothing else. Paths are compared after resolving symlinks,
- * so a link inside the tour directory cannot lead out of it.
+ * so a link inside the walkthrough directory cannot lead out of it.
  */
 export function decide(
 	sandbox: Sandbox,
@@ -30,7 +30,10 @@ export function decide(
 
 	const reading = READ_TOOLS.has(toolName);
 	if (!reading && !WRITE_TOOLS.has(toolName)) {
-		return { allow: false, reason: `${toolName} is not available in a tour.` };
+		return {
+			allow: false,
+			reason: `${toolName} is not available in a walkthrough.`,
+		};
 	}
 	// Read, Write and Edit name a file; Glob and Grep name a directory to
 	// search, which defaults to the working directory.
@@ -48,8 +51,8 @@ export function decide(
 	return {
 		allow: false,
 		reason: reading
-			? `${named} is outside the tour directory. A tour reads only ${sandbox.cwd} and its scratch directory.`
-			: `${named} is not writable. A tour writes only to ${sandbox.scratchDir}.`,
+			? `${named} is outside the walkthrough directory. A walkthrough reads only ${sandbox.cwd} and its scratch directory.`
+			: `${named} is not writable. A walkthrough writes only to ${sandbox.scratchDir}.`,
 	};
 }
 

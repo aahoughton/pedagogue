@@ -8,7 +8,7 @@ import type {
 } from "./driver.ts";
 
 /**
- * A scripted stand-in for an agent. Tests read what the tour sent it, call the
+ * A scripted stand-in for an agent. Tests read what the walkthrough sent it, call the
  * tools it was given, and emit agent events by hand.
  */
 export class FakeDriver implements AgentDriver {
@@ -55,7 +55,7 @@ export class FakeSession implements AgentSession {
 		return spec.handler(z.object(spec.input).parse(args));
 	}
 
-	/** Emits an event and waits for the tour to process it. */
+	/** Emits an event and waits for the walkthrough to process it. */
 	async emit(event: AgentEvent): Promise<void> {
 		this.events.push(event);
 		await new Promise((resolve) => setImmediate(resolve));

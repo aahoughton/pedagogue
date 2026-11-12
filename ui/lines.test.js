@@ -139,7 +139,7 @@ test("faviconSvg is the same still image on every frame while waiting", () => {
 	assert.notEqual(faviconSvg("waiting"), faviconSvg("working"));
 });
 
-test("faviconSvg greys the bubble when the tour is not live", () => {
+test("faviconSvg greys the bubble when the walkthrough is not live", () => {
 	assert.equal(faviconSvg("closed"), faviconSvg("reconnecting"));
 	assert.notEqual(faviconSvg("closed"), faviconSvg("waiting"));
 });

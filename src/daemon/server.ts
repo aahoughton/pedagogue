@@ -12,15 +12,22 @@ import { WebSocketServer } from "ws";
 import { z } from "zod";
 import type { Build } from "./build.ts";
 import type { AgentDriver } from "./driver.ts";
-import type { TourStore } from "./store.ts";
-import { InputError, Tour, type TourRecord } from "./tour.ts";
+import type { WalkthroughStore } from "./store.ts";
+import {
+	InputError,
+	Walkthrough,
+	type WalkthroughRecord,
+} from "./walkthrough.ts";
 
 export const ROOT = resolve(import.meta.dirname, "../..");
 const UI_DIR = join(ROOT, "ui");
 
 /** Files the browser may load, by URL path. Nothing else on disk is served. */
 const ASSETS: Record<string, { file: string; type: string }> = {
-	"/assets/tour.js": { file: join(UI_DIR, "tour.js"), type: "text/javascript" },
+	"/assets/walkthrough.js": {
+		file: join(UI_DIR, "walkthrough.js"),
+		type: "text/javascript",
+	},
 	"/assets/lines.js": {
 		file: join(UI_DIR, "lines.js"),
 		type: "text/javascript",
@@ -69,7 +76,7 @@ const MERMAID_DIR = join(ROOT, "node_modules/mermaid/dist");
 const MERMAID_PATH =
 	/^\/vendor\/mermaid\/(mermaid\.esm\.min\.mjs|chunks\/mermaid\.esm\.min\/[\w.-]+\.mjs)$/;
 
-const StartTour = z.object({
+const StartWalkthrough = z.object({
 	cwd: z.string().min(1),
 	brief: z.string().trim().min(1),
 });
@@ -93,10 +100,10 @@ const LearnerInput = z.discriminatedUnion("type", [
 
 export interface AppOptions {
 	driver: AgentDriver;
-	/** Where tours are saved and where their scratch directories live. */
-	store: TourStore;
-	/** Saved tours to bring back as dormant. */
-	records?: TourRecord[];
+	/** Where walkthroughs are saved and where their scratch directories live. */
+	store: WalkthroughStore;
+	/** Saved walkthroughs to bring back as dormant. */
+	records?: WalkthroughRecord[];
 	/** How long a tutor may wait for the learner before its process is stopped. */
 	idleMs?: number;
 	/** Base URL a browser on another machine uses to reach the daemon. */
@@ -116,9 +123,9 @@ export interface App {
 	handle(request: IncomingMessage, response: ServerResponse): void;
 	/** Attaches WebSocket handling to a listening server. */
 	attach(server: Server): void;
-	tours: ReadonlyMap<string, Tour>;
+	walkthroughs: ReadonlyMap<string, Walkthrough>;
 	/**
-	 * Stops every tutor and saves every tour. Tours keep their state and wake
+	 * Stops every tutor and saves every walkthrough. Walkthroughs keep their state and wake
 	 * again after a restart.
 	 */
 	close(): Promise<void>;
@@ -133,20 +140,21 @@ class HttpError extends Error {
 }
 
 export function createApp(options: AppOptions): App {
-	const tours = new Map<string, Tour>();
+	const walkthroughs = new Map<string, Walkthrough>();
 	const settings = {
 		driver: options.driver,
 		idleMs: options.idleMs,
-		// A deleted tour is no longer in the map and must not be saved again.
-		onChange: (tour: Tour) => {
-			if (tours.get(tour.id) === tour) options.store.schedule(tour);
+		// A deleted walkthrough is no longer in the map and must not be saved again.
+		onChange: (walkthrough: Walkthrough) => {
+			if (walkthroughs.get(walkthrough.id) === walkthrough)
+				options.store.schedule(walkthrough);
 		},
 	};
 	for (const record of options.records ?? []) {
 		const id = record.state.id;
-		tours.set(
+		walkthroughs.set(
 			id,
-			Tour.restore(record, {
+			Walkthrough.restore(record, {
 				...settings,
 				scratchDir: options.store.scratchDir(id),
 			}),
@@ -174,11 +182,11 @@ export function createApp(options: AppOptions): App {
 		}
 	}
 
-	async function startTour(request: IncomingMessage): Promise<object> {
+	async function startWalkthrough(request: IncomingMessage): Promise<object> {
 		if (!request.headers["content-type"]?.startsWith("application/json")) {
 			throw new HttpError(415, "send application/json");
 		}
-		const parsed = StartTour.safeParse(await readJson(request));
+		const parsed = StartWalkthrough.safeParse(await readJson(request));
 		if (!parsed.success) {
 			throw new HttpError(400, 'expected {"cwd": string, "brief": string}');
 		}
@@ -191,16 +199,16 @@ export function createApp(options: AppOptions): App {
 		const id = randomUUID().slice(0, 8);
 		const scratchDir = options.store.scratchDir(id);
 		await mkdir(scratchDir, { recursive: true });
-		const tour = await Tour.open({
+		const walkthrough = await Walkthrough.open({
 			id,
 			cwd,
 			scratchDir,
 			brief: parsed.data.brief,
 			...settings,
 		});
-		tours.set(id, tour);
-		options.store.schedule(tour);
-		return { id, url: new URL(`/tours/${id}`, options.publicUrl).href };
+		walkthroughs.set(id, walkthrough);
+		options.store.schedule(walkthrough);
+		return { id, url: new URL(`/walkthroughs/${id}`, options.publicUrl).href };
 	}
 
 	async function route(
@@ -231,50 +239,65 @@ export function createApp(options: AppOptions): App {
 		if (pathname === "/about" && method === "GET") {
 			return sendJson(response, 200, options.build);
 		}
-		if (pathname === "/tours" && method === "GET") {
+		if (pathname === "/walkthroughs" && method === "GET") {
 			return sendJson(response, 200, {
-				tours: [...tours.values()]
+				walkthroughs: [...walkthroughs.values()]
 					.sort((a, b) => lastActive(b).localeCompare(lastActive(a)))
-					.map((tour) => {
-						const { id, cwd, title, summary, status } = tour.state;
+					.map((walkthrough) => {
+						const { id, cwd, title, summary, status } = walkthrough.state;
 						return {
 							id,
 							cwd,
 							title,
-							// Shown on hover. A tour its tutor has not named yet is
+							// Shown on hover. A walkthrough its tutor has not named yet is
 							// described by its brief.
-							summary: summary ?? tour.brief,
+							summary: summary ?? walkthrough.brief,
 							status,
-							createdAt: tour.createdAt,
-							lastMessageAt: tour.lastMessageAt,
+							createdAt: walkthrough.createdAt,
+							lastMessageAt: walkthrough.lastMessageAt,
 						};
 					}),
 			});
 		}
-		if (pathname === "/tours" && method === "POST") {
+		if (pathname === "/walkthroughs" && method === "POST") {
 			checkOrigin(request);
-			return sendJson(response, 201, await startTour(request));
+			return sendJson(response, 201, await startWalkthrough(request));
 		}
-		const match = /^\/tours\/([a-z0-9]+)$/.exec(pathname);
+		// Links made before walkthroughs were called that.
+		const old = /^\/tours\/([a-z0-9]+)$/.exec(pathname);
+		if (old && method === "GET") {
+			response.writeHead(308, { location: `/walkthroughs/${old[1]}` });
+			response.end();
+			return;
+		}
+		const match = /^\/walkthroughs\/([a-z0-9]+)$/.exec(pathname);
 		if (match) {
-			const tour = tours.get(match[1] as string);
-			if (!tour) throw new HttpError(404, `no such tour: ${match[1]}`);
+			const walkthrough = walkthroughs.get(match[1] as string);
+			if (!walkthrough)
+				throw new HttpError(404, `no such walkthrough: ${match[1]}`);
 			if (method === "GET") {
-				return sendFile(response, join(UI_DIR, "tour.html"), "text/html");
+				return sendFile(
+					response,
+					join(UI_DIR, "walkthrough.html"),
+					"text/html",
+				);
 			}
 			if (method === "DELETE") {
 				checkOrigin(request);
-				tours.delete(tour.id);
-				tour.close();
-				await options.store.remove(tour.id);
-				return sendJson(response, 200, { id: tour.id, status: "deleted" });
+				walkthroughs.delete(walkthrough.id);
+				walkthrough.close();
+				await options.store.remove(walkthrough.id);
+				return sendJson(response, 200, {
+					id: walkthrough.id,
+					status: "deleted",
+				});
 			}
 		}
 		throw new HttpError(404, `not found: ${method} ${pathname}`);
 	}
 
 	return {
-		tours,
+		walkthroughs,
 		handle(request, response) {
 			route(request, response).catch((error: unknown) => {
 				const status = error instanceof HttpError ? error.status : 500;
@@ -285,20 +308,22 @@ export function createApp(options: AppOptions): App {
 		},
 		attach(server) {
 			server.on("upgrade", (request, socket, head) => {
-				let tour: Tour | undefined;
+				let walkthrough: Walkthrough | undefined;
 				try {
 					checkHost(request);
 					checkOrigin(request);
 					const { pathname } = new URL(request.url ?? "/", "http://daemon");
-					const match = /^\/tours\/([a-z0-9]+)\/ws$/.exec(pathname);
-					tour = match ? tours.get(match[1] as string) : undefined;
-					if (!tour) throw new HttpError(404, "no such tour");
+					const match = /^\/walkthroughs\/([a-z0-9]+)\/ws$/.exec(pathname);
+					walkthrough = match
+						? walkthroughs.get(match[1] as string)
+						: undefined;
+					if (!walkthrough) throw new HttpError(404, "no such walkthrough");
 				} catch (error) {
 					const status = error instanceof HttpError ? error.status : 500;
 					socket.end(`HTTP/1.1 ${status} Refused\r\n\r\n`);
 					return;
 				}
-				const target = tour;
+				const target = walkthrough;
 				sockets.handleUpgrade(request, socket, head, (ws) => {
 					const unsubscribe = target.subscribe((event) =>
 						ws.send(JSON.stringify(event)),
@@ -320,7 +345,7 @@ export function createApp(options: AppOptions): App {
 			});
 		},
 		async close() {
-			for (const tour of tours.values()) tour.sleep();
+			for (const walkthrough of walkthroughs.values()) walkthrough.sleep();
 			sockets.close();
 			await options.store.flush();
 		},
@@ -344,9 +369,9 @@ export async function listen(
 	return { server, port: (server.address() as AddressInfo).port };
 }
 
-/** When a learner or tutor last said something in a tour, or when it started. */
-function lastActive(tour: Tour): string {
-	return tour.lastMessageAt ?? tour.createdAt;
+/** When a learner or tutor last said something in a walkthrough, or when it started. */
+function lastActive(walkthrough: Walkthrough): string {
+	return walkthrough.lastMessageAt ?? walkthrough.createdAt;
 }
 
 function hostname(hostHeader: string | undefined): string | undefined {

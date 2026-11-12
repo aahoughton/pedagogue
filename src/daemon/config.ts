@@ -32,9 +32,9 @@ export class ConfigError extends Error {}
  *   Claude subscription token printed by `claude setup-token`. An empty value
  *   counts as unset.
  * - PEDAGOGUE_HOST: comma-separated addresses to listen on. Default 127.0.0.1.
- *   Add the machine's tailnet address to reach tours from another machine.
+ *   Add the machine's tailnet address to reach walkthroughs from another machine.
  * - PEDAGOGUE_PORT: default 4270.
- * - PEDAGOGUE_PUBLIC_URL: base URL put in the links handed out for tours.
+ * - PEDAGOGUE_PUBLIC_URL: base URL put in the links handed out for walkthroughs.
  *   Default http://<first host>:<port>.
  * - PEDAGOGUE_DATA_DIR: default $XDG_DATA_HOME/pedagogue or ~/.local/share/pedagogue.
  * - PEDAGOGUE_IDLE_MINUTES: how long a tutor waits for the learner before its

@@ -18,7 +18,7 @@ import type {
 } from "./driver.ts";
 import { decide } from "./permissions.ts";
 
-const TOOL_SERVER = "tour";
+const TOOL_SERVER = "walkthrough";
 const BUILT_IN_TOOLS = ["Read", "Glob", "Grep", "Write", "Edit"];
 
 export interface ClaudeDriverOptions {

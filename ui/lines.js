@@ -177,7 +177,7 @@ export function faviconHref(status, frame = 0) {
 }
 
 /**
- * The tour page's tab title. It starts with "(working)" while the tutor
+ * The walkthrough page's tab title. It starts with "(working)" while the tutor
  * works, which shows the status in browsers that do not animate the icon.
  */
 export function tabTitle(title, status) {
@@ -186,7 +186,7 @@ export function tabTitle(title, status) {
 }
 
 /**
- * The plan's heading: how far along the tour is (`count`) and the title of
+ * The plan's heading: how far along the walkthrough is (`count`) and the title of
  * the step in progress (`title`, empty when no step is marked).
  */
 export function planSummary(outline, step) {

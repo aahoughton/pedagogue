@@ -5,9 +5,9 @@ it. The tutor is an AI agent that reads your code, opens the files that matter
 with the important lines highlighted, draws diagrams, and asks you questions.
 You reply, select lines to ask about, and answer quizzes on the same page.
 
-![A tour: code with highlighted lines on the left, the tutor's explanation, outline and a selected-lines question on the right](docs/tour.png)
+![A walkthrough: code with highlighted lines on the left, the tutor's explanation, outline and a selected-lines question on the right](docs/walkthrough.png)
 
-## What a tour gives you
+## What a walkthrough gives you
 
 - **A route, not a file listing.** The tutor reads the code first, then sets
   an outline that follows how the thing works and takes it one step at a time.
@@ -20,20 +20,20 @@ You reply, select lines to ask about, and answer quizzes on the same page.
   how you got to a wrong answer before correcting it.
 - **Diagrams and more.** Mermaid diagrams, markdown tables, and sandboxed HTML
   for anything else worth drawing.
-- **Tours that last.** Tours are saved, listed, and resumed where you left
+- **Walkthroughs that last.** Walkthroughs are saved, listed, and resumed where you left
   off, including after a restart. The index page deletes the ones you are
   done with.
 
 ## How it works
 
 ```
-your agent session --"explain X"--> tour (skill + CLI) --> daemon --> tutor agent
+your agent session --"explain X"--> walkthrough (skill + CLI) --> daemon --> tutor agent
                                                              |
 your browser  <------------ panes, conversation -------------+
 ```
 
 One daemon runs on the machine that holds your code. It serves the pages and
-runs one tutor per tour through the
+runs one tutor per walkthrough through the
 [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview). A tutor
 can read the directory it is explaining and nothing else. Your browser can be
 on another machine.
@@ -43,7 +43,7 @@ on another machine.
 - Node 22.18 or later and pnpm. With [mise](https://mise.jdx.dev),
   `mise install` gets the versions this repository pins.
 - An Anthropic API key. Tutors run on it and usage is billed to it; a tutor
-  reads a fair amount of code with a large model, so a tour is not free. To
+  reads a fair amount of code with a large model, so a walkthrough is not free. To
   run tutors on your own Claude subscription instead, see
   [Configuration](#configuration).
 - macOS or Linux. Developed on macOS; used with Safari and Firefox.
@@ -58,30 +58,30 @@ install -m 600 env.example ~/.config/pedagogue/env   # then add your API key
 pnpm start
 ```
 
-Open <http://127.0.0.1:4270>, give it a directory and a question, and the tour
+Open <http://127.0.0.1:4270>, give it a directory and a question, and the walkthrough
 opens.
 
-## Starting tours
+## Starting walkthroughs
 
 **From the index page.** Fill in the form.
 
-**From a terminal.** `bin/tour` prints the tour's link:
+**From a terminal.** `bin/walkthrough` prints the walkthrough's link:
 
 ```sh
-bin/tour --cwd ~/src/project "How does config loading work?"
+bin/walkthrough --cwd ~/src/project "How does config loading work?"
 ```
 
 **From an agent session.** With the skill installed, "walk me through how X
-works" makes the agent write a brief for the tutor, start the tour, and hand
+works" makes the agent write a brief for the tutor, start the walkthrough, and hand
 you the link. For Claude Code, link the skill and the launcher from your
 checkout:
 
 ```sh
 ln -s "$(pwd)/skills/guided-explanation" ~/.claude/skills/guided-explanation
-ln -s "$(pwd)/bin/tour" ~/.local/bin/tour    # any directory on your PATH
+ln -s "$(pwd)/bin/walkthrough" ~/.local/bin/walkthrough    # any directory on your PATH
 ```
 
-## On the tour page
+## On the walkthrough page
 
 | To                               | Do                                                |
 | -------------------------------- | ------------------------------------------------- |
@@ -98,7 +98,7 @@ in progress.
 
 ## Using it from another machine
 
-The daemon listens on loopback only unless told otherwise. To open tours from
+The daemon listens on loopback only unless told otherwise. To open walkthroughs from
 a laptop while the daemon runs on a desktop, put both on a private network
 such as a tailnet and set, in `~/.config/pedagogue/env`:
 
@@ -122,16 +122,16 @@ credential), then from the environment, which wins.
 | `PEDAGOGUE_HOST`          | `127.0.0.1`                  | Comma-separated addresses to listen on                                              |
 | `PEDAGOGUE_PORT`          | `4270`                       | Port                                                                                |
 | `PEDAGOGUE_PUBLIC_URL`    | `http://<first host>:<port>` | Base of the links handed out                                                        |
-| `PEDAGOGUE_DATA_DIR`      | `~/.local/share/pedagogue`   | Saved tours and tutor scratch files                                                 |
+| `PEDAGOGUE_DATA_DIR`      | `~/.local/share/pedagogue`   | Saved walkthroughs and tutor scratch files                                          |
 | `PEDAGOGUE_IDLE_MINUTES`  | `15`                         | How long a tutor waits for you before its process stops; your next message wakes it |
 | `PEDAGOGUE_MODEL`         | the Agent SDK's default      | Model for tutors                                                                    |
-| `PEDAGOGUE_URL`           | `http://127.0.0.1:4270`      | Where `bin/tour` finds the daemon                                                   |
+| `PEDAGOGUE_URL`           | `http://127.0.0.1:4270`      | Where `bin/walkthrough` finds the daemon                                            |
 | `PEDAGOGUE_ENV_FILE`      | `~/.config/pedagogue/env`    | A different settings file                                                           |
 
 Set exactly one of `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN`; the
 daemon stops at startup if both or neither is set. `claude setup-token` prints
 a subscription token (it needs a Claude Pro, Max, Team or Enterprise plan),
-and tours then count against that plan's usage limits. Use a token only for
+and walkthroughs then count against that plan's usage limits. Use a token only for
 your own account on a daemon you run for yourself: Anthropic does not allow
 offering claude.ai login or subscription rate limits to other people through
 a tool built on the Agent SDK.
@@ -144,7 +144,7 @@ Version 0.9.0. It is a personal tool that works well for its author and is
 shared as it is.
 
 - Tutors are Claude only.
-- A tour explains one directory, read-only. The tutor cannot run code, and
+- A walkthrough explains one directory, read-only. The tutor cannot run code, and
   there are no writing exercises yet.
 - There is no login and no multi-user support.
 - Not published to a package registry; run it from a checkout.

@@ -7,10 +7,10 @@ what it protects, what it does not, and how to report a problem.
 
 **The daemon has no login.** Anyone who can reach its port can:
 
-- start a tour in any directory the daemon's user can read, which lets them
+- start a walkthrough in any directory the daemon's user can read, which lets them
   read those files through a tutor, at the cost of your API key or
   subscription usage;
-- open any existing tour and read its panes and conversation, which include
+- open any existing walkthrough and read its panes and conversation, which include
   the contents of the files the tutor showed.
 
 So the network boundary is the only access control. The daemon listens on
@@ -36,19 +36,19 @@ does not.
 A tutor is a Claude Code process started through the Agent SDK with your API
 key. It does not load your Claude Code settings, hooks or MCP servers.
 
-- It can read files in the tour's directory and in its own scratch directory.
+- It can read files in the walkthrough's directory and in its own scratch directory.
 - It can write files in its scratch directory only.
 - It has no shell and no web tools.
 - Every tool call is checked by the daemon, with symlinks resolved, and
   refused otherwise. The check is `src/daemon/permissions.ts`.
 
 **Anything a tutor reads is sent to Anthropic's API**, under the terms of the
-account your API key or subscription token belongs to. Do not start a tour in a directory whose contents you may not
+account your API key or subscription token belongs to. Do not start a walkthrough in a directory whose contents you may not
 send there.
 
 ## Untrusted content in the directory being explained
 
-Files in the tour's directory can contain text that tries to instruct the
+Files in the walkthrough's directory can contain text that tries to instruct the
 tutor. The limits above bound the damage: the tutor still cannot read outside
 the directory, write outside scratch, run anything, or reach the network.
 What such text can do is change what the tutor shows you:
@@ -64,10 +64,10 @@ What such text can do is change what the tutor shows you:
 
 - `~/.config/pedagogue/env` holds your API key or subscription token. The daemon refuses to read it
   unless only you can read it.
-- `~/.local/share/pedagogue` holds every tour unencrypted: its conversation
+- `~/.local/share/pedagogue` holds every walkthrough unencrypted: its conversation
   and the full text of each file the tutor showed.
 - The Agent SDK keeps each tutor's conversation under `~/.claude/projects`,
-  which is how a tour resumes.
+  which is how a walkthrough resumes.
 
 ## Reporting a problem
 

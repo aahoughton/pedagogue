@@ -10,19 +10,19 @@
 <body class="index">
 <header id="titlebar"><span id="build">pedagogue</span></header>
 <main>
-  <h1>Tours</h1>
-  <ul id="tours"><li class="empty">No tours yet.</li></ul>
-  <h2>Start a tour</h2>
+  <h1>What do you want to understand?</h1>
   <form id="start">
     <label>Directory on the daemon's machine
       <input name="cwd" required placeholder="/Users/me/project" autocomplete="off">
     </label>
-    <label>What do you want to understand?
+    <label>Your question
       <textarea name="brief" rows="3" required placeholder="How does config loading work?"></textarea>
     </label>
     <button type="submit">Start</button>
     <p id="error" class="error" hidden></p>
   </form>
+  <h2>Walkthroughs</h2>
+  <ul id="walkthroughs"><li class="empty">No walkthroughs yet.</li></ul>
 </main>
 <script type="module" src="/assets/index.js"></script>
 </body>

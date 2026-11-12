@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
 
-export const USAGE = `usage: tour [--cwd <dir>] <brief>
-       tour [--cwd <dir>] -        (read the brief from stdin)
+export const USAGE = `usage: walkthrough [--cwd <dir>] <brief>
+       walkthrough [--cwd <dir>] -        (read the brief from stdin)
 
-Starts a tour on the pedagogue daemon and prints its link.
+Starts a walkthrough on the pedagogue daemon and prints its link.
 
   --cwd <dir>   directory the tutor explains (default: current directory)
 
@@ -39,14 +39,14 @@ export function parseArgs(args: string[], currentDir: string): Request {
 	return { cwd, brief: rest[0] as string };
 }
 
-/** Asks the daemon to start a tour and returns its link. */
-export async function startTour(
+/** Asks the daemon to start a walkthrough and returns its link. */
+export async function startWalkthrough(
 	daemonUrl: string,
 	request: Request,
 ): Promise<string> {
 	let response: Response;
 	try {
-		response = await fetch(new URL("/tours", daemonUrl), {
+		response = await fetch(new URL("/walkthroughs", daemonUrl), {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify(request),

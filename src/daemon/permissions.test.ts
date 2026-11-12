@@ -14,17 +14,20 @@ writeFileSync(join(cwd, "src/a.ts"), "x");
 writeFileSync(join(root, "secret"), "x");
 symlinkSync(join(root, "secret"), join(cwd, "link"));
 symlinkSync(root, join(cwd, "up"));
-const sandbox: Sandbox = { cwd, scratchDir, toolPrefix: "mcp__tour__" };
+const sandbox: Sandbox = { cwd, scratchDir, toolPrefix: "mcp__walkthrough__" };
 
 const allowed = (tool: string, input: Record<string, unknown>) =>
 	decide(sandbox, tool, input).allow;
 
-test("the tour's own tools are always allowed", () => {
-	assert.equal(allowed("mcp__tour__show_code", { path: "/etc/passwd" }), true);
+test("the walkthrough's own tools are always allowed", () => {
+	assert.equal(
+		allowed("mcp__walkthrough__show_code", { path: "/etc/passwd" }),
+		true,
+	);
 	assert.equal(allowed("mcp__other__thing", {}), false);
 });
 
-test("reads are allowed inside the tour directory and the scratch directory", () => {
+test("reads are allowed inside the walkthrough directory and the scratch directory", () => {
 	assert.equal(allowed("Read", { file_path: join(cwd, "src/a.ts") }), true);
 	assert.equal(allowed("Read", { file_path: "src/a.ts" }), true);
 	assert.equal(allowed("Read", { file_path: join(scratchDir, "notes") }), true);
@@ -57,7 +60,7 @@ test("other tools and calls without a usable path are refused with a reason", ()
 	const bash = decide(sandbox, "Bash", { command: "ls" });
 	assert.deepEqual(bash, {
 		allow: false,
-		reason: "Bash is not available in a tour.",
+		reason: "Bash is not available in a walkthrough.",
 	});
 	assert.equal(allowed("Read", { file_path: 7 }), false);
 });

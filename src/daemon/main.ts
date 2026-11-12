@@ -3,7 +3,7 @@ import { readBuild } from "./build.ts";
 import { ClaudeDriver } from "./claude-driver.ts";
 import { allowedHosts, ConfigError, readConfig } from "./config.ts";
 import { createApp, listen, ROOT } from "./server.ts";
-import { TourStore } from "./store.ts";
+import { WalkthroughStore } from "./store.ts";
 
 let config: ReturnType<typeof readConfig>;
 try {
@@ -28,12 +28,23 @@ console.log(
 		: "pedagogue: tutors run on a Claude subscription token",
 );
 
-const store = new TourStore(config.dataDir);
+const store = new WalkthroughStore(config.dataDir);
+try {
+	const moved = await store.adoptOldNames();
+	if (moved) console.log(`pedagogue: moved saved data out of ${moved}`);
+} catch (error) {
+	console.error(
+		`pedagogue: ${error instanceof Error ? error.message : String(error)}`,
+	);
+	process.exit(2);
+}
 const { records, problems } = await store.loadAll();
 for (const problem of problems) {
-	console.error(`pedagogue: skipped a saved tour: ${problem}`);
+	console.error(`pedagogue: skipped a saved walkthrough: ${problem}`);
 }
-console.log(`pedagogue: ${records.length} saved tours in ${config.dataDir}`);
+console.log(
+	`pedagogue: ${records.length} saved walkthroughs in ${config.dataDir}`,
+);
 
 const app = createApp({
 	driver: new ClaudeDriver({
@@ -60,7 +71,7 @@ for (const host of config.hosts) {
 	}
 	console.log(`pedagogue: listening on http://${host}:${config.port}`);
 }
-console.log(`pedagogue: tour links use ${config.publicUrl}`);
+console.log(`pedagogue: walkthrough links use ${config.publicUrl}`);
 
 let stopping = false;
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

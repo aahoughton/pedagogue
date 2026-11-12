@@ -4,15 +4,15 @@
 const [major, minor] = process.versions.node.split(".").map(Number);
 if (major < 22 || (major === 22 && minor < 18)) {
 	console.error(
-		`tour: needs Node 22.18 or later to run, but this shell has ${process.version}. A project that pins an older Node hides the newer one; run tour from another directory with --cwd, or with a newer node on PATH.`,
+		`walkthrough: needs Node 22.18 or later to run, but this shell has ${process.version}. A project that pins an older Node hides the newer one; run walkthrough from another directory with --cwd, or with a newer node on PATH.`,
 	);
 	process.exit(2);
 }
 
 const { text } = await import("node:stream/consumers");
 const { EnvFileError, loadEnvFile } = await import("../src/env-file.ts");
-const { parseArgs, startTour, USAGE, UsageError } = await import(
-	"../src/cli/start-tour.ts"
+const { parseArgs, startWalkthrough, USAGE, UsageError } = await import(
+	"../src/cli/start-walkthrough.ts"
 );
 
 try {
@@ -20,16 +20,16 @@ try {
 	if (request.brief === "-") request.brief = await text(process.stdin);
 	loadEnvFile(process.env);
 	const daemonUrl = process.env.PEDAGOGUE_URL ?? "http://127.0.0.1:4270";
-	console.log(await startTour(daemonUrl, request));
+	console.log(await startWalkthrough(daemonUrl, request));
 } catch (error) {
 	if (error instanceof EnvFileError) {
-		console.error(`tour: ${error.message}`);
+		console.error(`walkthrough: ${error.message}`);
 		process.exit(2);
 	}
 	if (error instanceof UsageError) {
-		console.error(`tour: ${error.message}\n\n${USAGE}`);
+		console.error(`walkthrough: ${error.message}\n\n${USAGE}`);
 		process.exit(2);
 	}
-	console.error(`tour: ${error instanceof Error ? error.message : error}`);
+	console.error(`walkthrough: ${error instanceof Error ? error.message : error}`);
 	process.exit(1);
 }

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { activityLabel } from "./activity.ts";
 
 const label = (tool: string, input: Record<string, unknown> = {}) =>
-	activityLabel(tool, input, "mcp__tour__");
+	activityLabel(tool, input, "mcp__walkthrough__");
 
 test("file tools name the file, not its directory", () => {
 	assert.equal(label("Read", { file_path: "/a/b/hub.go" }), "Reading hub.go");
@@ -26,11 +26,11 @@ test("searches show the pattern, clipped when long", () => {
 	);
 });
 
-test("the tour's own tools and unknown tools get general labels", () => {
+test("the walkthrough's own tools and unknown tools get general labels", () => {
 	assert.equal(
-		label("mcp__tour__show_code", { path: "a" }),
+		label("mcp__walkthrough__show_code", { path: "a" }),
 		"Updating the display",
 	);
-	assert.equal(label("mcp__tour__ask_quiz"), "Writing a question");
+	assert.equal(label("mcp__walkthrough__ask_quiz"), "Writing a question");
 	assert.equal(label("Bash", { command: "ls" }), "Working");
 });

@@ -2,7 +2,7 @@ import { basename } from "node:path";
 
 /**
  * A few words for the learner about what a tutor's tool call is doing, such as
- * "Reading hub.go". `toolPrefix` marks the tour's own display tools.
+ * "Reading hub.go". `toolPrefix` marks the walkthrough's own display tools.
  */
 export function activityLabel(
 	toolName: string,

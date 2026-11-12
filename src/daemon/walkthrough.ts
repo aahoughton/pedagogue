@@ -21,7 +21,7 @@ export type Pane =
 			id: string;
 			kind: "code";
 			title: string;
-			/** Relative to the tour's directory. */
+			/** Relative to the walkthrough's directory. */
 			path: string;
 			text: string;
 			highlights: LineRange[];
@@ -70,20 +70,20 @@ export type TranscriptItem =
 type TutorItem = Extract<TranscriptItem, { kind: "tutor" }>;
 type QuizItem = Extract<TranscriptItem, { kind: "quiz" }>;
 
-export type TourStatus = "working" | "waiting" | "closed";
+export type WalkthroughStatus = "working" | "waiting" | "closed";
 
-export interface TourState {
+export interface WalkthroughState {
 	id: string;
 	cwd: string;
 	/**
-	 * The tutor's name for the tour once it has given one; until then, the
+	 * The tutor's name for the walkthrough once it has given one; until then, the
 	 * first line of the brief.
 	 */
 	title: string;
-	/** The tutor's one-sentence description. Unset until it names the tour. */
+	/** The tutor's one-sentence description. Unset until it names the walkthrough. */
 	summary?: string;
-	status: TourStatus;
-	/** Set when the tour closed because of a failure. */
+	status: WalkthroughStatus;
+	/** Set when the walkthrough closed because of a failure. */
 	error?: string;
 	outline: string[];
 	/** Index into `outline` of the step in progress. */
@@ -95,10 +95,10 @@ export interface TourState {
 	transcript: TranscriptItem[];
 }
 
-/** An incremental change to a TourState, applied in order by every viewer. */
-export type TourEvent =
-	/** `createdAt` is when the tour started, as an ISO time. */
-	| { type: "snapshot"; state: TourState; createdAt: string }
+/** An incremental change to a WalkthroughState, applied in order by every viewer. */
+export type WalkthroughEvent =
+	/** `createdAt` is when the walkthrough started, as an ISO time. */
+	| { type: "snapshot"; state: WalkthroughState; createdAt: string }
 	| { type: "pane"; pane: Pane }
 	| { type: "pane_closed"; id: string }
 	| { type: "focus"; id: string }
@@ -108,7 +108,7 @@ export type TourEvent =
 	/** Text to add to the end of a tutor item that is still being written. */
 	| { type: "item_delta"; id: string; text: string }
 	| { type: "activity"; label?: string }
-	| { type: "status"; status: TourStatus; error?: string };
+	| { type: "status"; status: WalkthroughStatus; error?: string };
 
 export type LearnerInput =
 	| { type: "message"; text: string; selection?: Selection }
@@ -119,10 +119,10 @@ export type LearnerInput =
 
 export class InputError extends Error {}
 
-/** What is saved for a tour and what it is restored from. */
-export interface TourRecord {
+/** What is saved for a walkthrough and what it is restored from. */
+export interface WalkthroughRecord {
 	version: 1;
-	state: TourState;
+	state: WalkthroughState;
 	brief: string;
 	/** The tutor conversation to continue, as reported by the driver. */
 	resumeToken?: string;
@@ -130,15 +130,15 @@ export interface TourRecord {
 	updatedAt: string;
 }
 
-export interface TourSettings {
+export interface WalkthroughSettings {
 	driver: AgentDriver;
 	/** How long a tutor may wait for the learner before its process is stopped. */
 	idleMs?: number;
-	/** Called after every change to the tour, for saving it. */
-	onChange?: (tour: Tour) => void;
+	/** Called after every change to the walkthrough, for saving it. */
+	onChange?: (walkthrough: Walkthrough) => void;
 }
 
-export interface TourOptions extends TourSettings {
+export interface WalkthroughOptions extends WalkthroughSettings {
 	id: string;
 	cwd: string;
 	/** The only directory the tutor may write to. */
@@ -151,20 +151,20 @@ export interface TourOptions extends TourSettings {
  * learner input that feeds the agent. Viewers subscribe for events and can rebuild
  * the full state from a snapshot followed by the events after it.
  *
- * The tutor's process is not always running. A tour restored from disk, or one
+ * The tutor's process is not always running. A walkthrough restored from disk, or one
  * whose tutor sat idle, is dormant: it shows as waiting for the learner, and the
  * next input starts a tutor that continues the saved conversation.
  */
-export class Tour {
-	readonly #state: TourState;
-	readonly #settings: TourSettings;
+export class Walkthrough {
+	readonly #state: WalkthroughState;
+	readonly #settings: WalkthroughSettings;
 	readonly #brief: string;
 	readonly #scratchDir: string;
 	readonly #createdAt: string;
 	#updatedAt: string;
 	/** The running tutor, if any. */
 	#session: AgentSession | undefined;
-	/** Set while a tutor is starting or running; cleared when the tour goes dormant. */
+	/** Set while a tutor is starting or running; cleared when the walkthrough goes dormant. */
 	#opening: Promise<AgentSession> | undefined;
 	#resumeToken: string | undefined;
 	/** True from resuming a conversation until the tutor completes a turn in it. */
@@ -172,7 +172,7 @@ export class Tour {
 	/** Messages sent to the tutor in the turn in progress. */
 	#pending: string[] = [];
 	#idleTimer: NodeJS.Timeout | undefined;
-	readonly #subscribers = new Set<(event: TourEvent) => void>();
+	readonly #subscribers = new Set<(event: WalkthroughEvent) => void>();
 	#nextId = 1;
 	/** Panes whose render failure the tutor has already been told about. */
 	readonly #reportedPaneErrors = new Set<string>();
@@ -180,9 +180,9 @@ export class Tour {
 	readonly #streaming = new Map<string, TutorItem>();
 
 	/** Starts the tutor and hands it the brief. Rejects if the tutor cannot start. */
-	static async open(options: TourOptions): Promise<Tour> {
+	static async open(options: WalkthroughOptions): Promise<Walkthrough> {
 		const now = new Date().toISOString();
-		const tour = new Tour(options, options.scratchDir, {
+		const walkthrough = new Walkthrough(options, options.scratchDir, {
 			version: 1,
 			state: {
 				id: options.id,
@@ -197,34 +197,37 @@ export class Tour {
 			createdAt: now,
 			updatedAt: now,
 		});
-		tour.#opening = tour.#start(undefined);
-		await tour.#opening;
-		tour.#toAgent(options.brief);
-		return tour;
+		walkthrough.#opening = walkthrough.#start(undefined);
+		await walkthrough.#opening;
+		walkthrough.#toAgent(options.brief);
+		return walkthrough;
 	}
 
-	/** Brings back a saved tour as dormant. A turn that was in progress is over. */
+	/** Brings back a saved walkthrough as dormant. A turn that was in progress is over. */
 	static restore(
-		record: TourRecord,
-		settings: TourSettings & { scratchDir: string },
-	): Tour {
+		record: WalkthroughRecord,
+		settings: WalkthroughSettings & { scratchDir: string },
+	): Walkthrough {
 		const state = structuredClone(record.state);
 		if (state.status === "working") state.status = "waiting";
 		delete state.activity;
 		for (const item of state.transcript) {
 			if (item.kind === "tutor") delete item.streaming;
 		}
-		const tour = new Tour(settings, settings.scratchDir, { ...record, state });
-		tour.#nextId =
+		const walkthrough = new Walkthrough(settings, settings.scratchDir, {
+			...record,
+			state,
+		});
+		walkthrough.#nextId =
 			1 +
 			Math.max(0, ...state.transcript.map((item) => Number(item.id.slice(1))));
-		return tour;
+		return walkthrough;
 	}
 
 	private constructor(
-		settings: TourSettings,
+		settings: WalkthroughSettings,
 		scratchDir: string,
-		record: TourRecord,
+		record: WalkthroughRecord,
 	) {
 		this.#settings = settings;
 		this.#scratchDir = scratchDir;
@@ -235,8 +238,8 @@ export class Tour {
 		this.#updatedAt = record.updatedAt;
 	}
 
-	/** Everything needed to restore this tour later. */
-	record(): TourRecord {
+	/** Everything needed to restore this walkthrough later. */
+	record(): WalkthroughRecord {
 		return {
 			version: 1,
 			state: this.state,
@@ -247,7 +250,7 @@ export class Tour {
 		};
 	}
 
-	/** When the tour started, as an ISO time. */
+	/** When the walkthrough started, as an ISO time. */
 	get createdAt(): string {
 		return this.#createdAt;
 	}
@@ -261,7 +264,7 @@ export class Tour {
 		return this.#updatedAt;
 	}
 
-	/** True while a tutor process is starting or running for this tour. */
+	/** True while a tutor process is starting or running for this walkthrough. */
 	get awake(): boolean {
 		return this.#opening !== undefined;
 	}
@@ -270,17 +273,17 @@ export class Tour {
 		return this.#state.id;
 	}
 
-	/** What the tour was asked to explain, as given when it started. */
+	/** What the walkthrough was asked to explain, as given when it started. */
 	get brief(): string {
 		return this.#brief;
 	}
 
-	get state(): TourState {
+	get state(): WalkthroughState {
 		return structuredClone(this.#state);
 	}
 
 	/** Calls `listener` with a snapshot, then with every later event. Returns an unsubscribe function. */
-	subscribe(listener: (event: TourEvent) => void): () => void {
+	subscribe(listener: (event: WalkthroughEvent) => void): () => void {
 		listener({
 			type: "snapshot",
 			state: this.state,
@@ -290,10 +293,10 @@ export class Tour {
 		return () => this.#subscribers.delete(listener);
 	}
 
-	/** Throws InputError when the input does not fit the tour's current state. */
+	/** Throws InputError when the input does not fit the walkthrough's current state. */
 	input(input: LearnerInput): void {
 		if (this.#state.status === "closed") {
-			throw new InputError("this tour has ended");
+			throw new InputError("this walkthrough has ended");
 		}
 		if (input.type === "interrupt") {
 			void this.#session?.interrupt();
@@ -367,7 +370,7 @@ export class Tour {
 		this.#toAgent(prefix + text);
 	}
 
-	/** Ends the tour for good. It stays readable and accepts no more input. */
+	/** Ends the walkthrough for good. It stays readable and accepts no more input. */
 	close(): void {
 		if (this.#state.status === "closed") return;
 		this.#detach();
@@ -375,7 +378,7 @@ export class Tour {
 	}
 
 	/**
-	 * Stops the tutor's process and leaves the tour as it is, to be woken by the
+	 * Stops the tutor's process and leaves the walkthrough as it is, to be woken by the
 	 * next input. Used when the tutor has been idle and when the daemon stops.
 	 */
 	sleep(): void {
@@ -420,18 +423,18 @@ export class Tour {
 		this.#resumeToken = undefined;
 		this.#append({
 			kind: "notice",
-			text: "The tutor's memory of this tour could not be restored. A new tutor is picking up from what is on this page.",
+			text: "The tutor's memory of this walkthrough could not be restored. A new tutor is picking up from what is on this page.",
 		});
 		this.#toAgent(
 			`${this.#recap()}\n\nThe learner's latest input follows.\n\n${pending.join("\n\n")}`,
 		);
 	}
 
-	/** The tour so far, written for a tutor that has no memory of it. */
+	/** The walkthrough so far, written for a tutor that has no memory of it. */
 	#recap(): string {
 		const state = this.#state;
 		const lines = [
-			"You are taking over a tour in progress. The tutor before you is gone and its conversation could not be restored. The learner still sees everything described below. Continue from where it stopped; do not start over or re-introduce yourself.",
+			"You are taking over a walkthrough in progress. The tutor before you is gone and its conversation could not be restored. The learner still sees everything described below. Continue from where it stopped; do not start over or re-introduce yourself.",
 			"",
 			`<original_brief>\n${this.#brief}\n</original_brief>`,
 		];
@@ -508,7 +511,7 @@ export class Tour {
 		const opening = this.#opening;
 		opening.then(
 			(session) => {
-				// The tour may have gone dormant or been closed while this one started.
+				// The walkthrough may have gone dormant or been closed while this one started.
 				if (this.#opening === opening) session.send(text);
 			},
 			(error: unknown) => {
@@ -520,7 +523,7 @@ export class Tour {
 	async #consume(session: AgentSession): Promise<void> {
 		for await (const event of session.events) {
 			// A session that was detached may still deliver events; they no
-			// longer belong to the tour.
+			// longer belong to the walkthrough.
 			if (session !== this.#session) return;
 			if (event.type === "text_delta") {
 				const item = this.#streaming.get(event.id);
@@ -607,7 +610,7 @@ export class Tour {
 		return full;
 	}
 
-	#setStatus(status: TourStatus, error?: string): void {
+	#setStatus(status: WalkthroughStatus, error?: string): void {
 		if (this.#state.status === status && !error) return;
 		this.#state.status = status;
 		if (error) this.#state.error = error;
@@ -624,21 +627,21 @@ export class Tour {
 		this.#emit({ type: "focus", id: pane.id });
 	}
 
-	#emit(event: TourEvent): void {
+	#emit(event: WalkthroughEvent): void {
 		this.#updatedAt = new Date().toISOString();
 		const copy = structuredClone(event);
 		for (const subscriber of this.#subscribers) subscriber(copy);
 		this.#settings.onChange?.(this);
 	}
 
-	/** Resolves a tutor-supplied path and refuses anything outside the tour's directory. */
+	/** Resolves a tutor-supplied path and refuses anything outside the walkthrough's directory. */
 	async #resolveInCwd(path: string): Promise<{ full: string; rel: string }> {
 		const root = await realpath(this.#state.cwd);
 		const full = await realpath(resolve(root, path)).catch(() => {
 			throw new Error(`no such file: ${path}`);
 		});
 		if (full !== root && !full.startsWith(root + sep)) {
-			throw new Error(`${path} is outside the tour directory`);
+			throw new Error(`${path} is outside the walkthrough directory`);
 		}
 		if (!(await stat(full)).isFile()) throw new Error(`not a file: ${path}`);
 		return { full, rel: relative(root, full) };
@@ -649,11 +652,11 @@ export class Tour {
 			defineTool({
 				name: "show_code",
 				description:
-					"Open a file from the tour directory in a code pane and bring it to the front. Highlight the line ranges the learner should look at and optionally attach a short note to them. Calling it again for the same path updates that pane.",
+					"Open a file from the walkthrough directory in a code pane and bring it to the front. Highlight the line ranges the learner should look at and optionally attach a short note to them. Calling it again for the same path updates that pane.",
 				input: {
 					path: z
 						.string()
-						.describe("File path, relative to the tour directory"),
+						.describe("File path, relative to the walkthrough directory"),
 					highlights: z
 						.array(
 							z.object({
@@ -758,20 +761,20 @@ export class Tour {
 			}),
 			defineTool({
 				name: "set_outline",
-				description: `Set or revise the plan for the tour, one short title per step, and mark the step now in progress. Call it once you know the plan and whenever you move to another step or the plan changes. The first call must also name the tour with title and summary; the learner picks tours from a list by them. Later calls leave them out unless the tour has changed course.`,
+				description: `Set or revise the plan for the walkthrough, one short title per step, and mark the step now in progress. Call it once you know the plan and whenever you move to another step or the plan changes. The first call must also name the walkthrough with title and summary; the learner picks walkthroughs from a list by them. Later calls leave them out unless the walkthrough has changed course.`,
 				input: {
 					steps: z.array(z.string()).min(1),
 					title: z
 						.string()
 						.optional()
 						.describe(
-							`Name of the tour in the tour list: two to five words, at most ${TITLE_MAX} characters, naming the specific subject (the mechanism, the change, the ticket) so it cannot be confused with another tour of the same codebase. No "tour of", "explain" or "how".`,
+							`Name of the walkthrough in the walkthrough list: two to five words, at most ${TITLE_MAX} characters, naming the specific subject (the mechanism, the change, the ticket) so it cannot be confused with another walkthrough of the same codebase. No "walkthrough of", "explain" or "how".`,
 						),
 					summary: z
 						.string()
 						.optional()
 						.describe(
-							`One sentence, at most ${SUMMARY_MAX} characters, shown when the learner hovers over the title: what the tour covers and in which repository, branch or pull request.`,
+							`One sentence, at most ${SUMMARY_MAX} characters, shown when the learner hovers over the title: what the walkthrough covers and in which repository, branch or pull request.`,
 						),
 					current: z
 						.number()
@@ -789,7 +792,7 @@ export class Tour {
 					const named = this.#state.summary !== undefined;
 					if (!named && (title === undefined || summary === undefined)) {
 						throw new Error(
-							"this tour has no name yet: call set_outline again with title and summary as well",
+							"this walkthrough has no name yet: call set_outline again with title and summary as well",
 						);
 					}
 					const newTitle = checkLength("title", title, TITLE_MAX);
