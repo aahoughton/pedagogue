@@ -11,6 +11,7 @@ import {
 	languageFor,
 	paneForPath,
 	parseLineLink,
+	planSummary,
 	splitHighlightedLines,
 	tabTitle,
 } from "./lines.js";
@@ -220,9 +221,20 @@ function keepAtEnd(change) {
 	if (atEnd) transcript.scrollTop = transcript.scrollHeight;
 }
 
+// The plan shows one line, the step in progress, until the learner opens it
+// to see every step. The browser keeps the choice, so it applies to every tour.
+const PLAN_OPEN_KEY = "pedagogue.planOpen";
+let planOpen = localStorage.getItem(PLAN_OPEN_KEY) === "1";
+
 function renderOutline() {
+	$("plan").hidden = state.outline.length === 0;
+	const { count, title } = planSummary(state.outline, state.step);
+	$("plan-toggle").setAttribute("aria-expanded", String(planOpen));
+	$("plan-count").textContent = count;
+	// The open list marks the step in progress itself.
+	$("plan-title").textContent = planOpen ? "" : title;
 	const list = $("outline");
-	list.hidden = state.outline.length === 0;
+	list.hidden = !planOpen;
 	list.replaceChildren(
 		...state.outline.map((title, index) => {
 			const item = document.createElement("li");
@@ -235,6 +247,12 @@ function renderOutline() {
 		}),
 	);
 }
+$("plan-toggle").addEventListener("click", () => {
+	planOpen = !planOpen;
+	if (planOpen) localStorage.setItem(PLAN_OPEN_KEY, "1");
+	else localStorage.removeItem(PLAN_OPEN_KEY);
+	renderOutline();
+});
 
 // Panes
 

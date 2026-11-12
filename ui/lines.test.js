@@ -12,6 +12,7 @@ import {
 	languageFor,
 	paneForPath,
 	parseLineLink,
+	planSummary,
 	splitHighlightedLines,
 	tabTitle,
 } from "./lines.js";
@@ -163,4 +164,22 @@ test("tabTitle marks the title only while the tutor works", () => {
 	assert.equal(tabTitle("Config", "working"), "(working) Config - pedagogue");
 	for (const status of ["waiting", "closed", "reconnecting"])
 		assert.equal(tabTitle("Config", status), "Config - pedagogue");
+});
+
+test("planSummary names the step in progress and how far along it is", () => {
+	assert.deepEqual(planSummary(["Read", "Parse", "Emit"], 1), {
+		count: "Step 2 of 3",
+		title: "Parse",
+	});
+});
+
+test("planSummary counts the steps when none is in progress", () => {
+	assert.deepEqual(planSummary(["Read", "Parse"], undefined), {
+		count: "2 steps",
+		title: "",
+	});
+	assert.deepEqual(planSummary(["Read"], undefined), {
+		count: "1 step",
+		title: "",
+	});
 });

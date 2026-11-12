@@ -23,7 +23,10 @@
   <div id="panes"><p class="empty" id="no-panes">The tutor is reading. Panes appear here.</p></div>
 </main>
 <aside id="side">
-  <ol id="outline" hidden></ol>
+  <section id="plan" hidden>
+    <button type="button" id="plan-toggle" aria-controls="outline" aria-expanded="false" title="Show or hide all steps"><span id="plan-count"></span><span id="plan-title"></span></button>
+    <ol id="outline" hidden></ol>
+  </section>
   <div id="transcript" aria-live="polite"></div>
   <div id="working" hidden><span class="dots"><i></i><i></i><i></i></span><span id="activity"></span></div>
   <form id="composer">

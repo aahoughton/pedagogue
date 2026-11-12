@@ -184,3 +184,16 @@ export function tabTitle(title, status) {
 	const prefix = status === "working" ? "(working) " : "";
 	return `${prefix}${title} - pedagogue`;
 }
+
+/**
+ * The plan's heading: how far along the tour is (`count`) and the title of
+ * the step in progress (`title`, empty when no step is marked).
+ */
+export function planSummary(outline, step) {
+	const title = step === undefined ? undefined : outline[step];
+	if (title === undefined) {
+		const noun = outline.length === 1 ? "step" : "steps";
+		return { count: `${outline.length} ${noun}`, title: "" };
+	}
+	return { count: `Step ${step + 1} of ${outline.length}`, title };
+}

@@ -332,15 +332,59 @@ body.tour #titlebar {
 	}
 }
 
-#outline {
-	margin: 0;
-	padding: 8px 12px 8px 36px;
+/* The plan: a heading that toggles the list of steps under it. */
+#plan {
+	display: flex;
+	flex-direction: column;
+	flex: none;
+	max-height: 35%;
 	border-bottom: 1px solid var(--border);
 	font-size: 13px;
-	color: var(--muted);
-	max-height: 30%;
-	overflow: auto;
+}
+#plan[hidden] {
+	display: none;
+}
+#plan-toggle {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
 	flex: none;
+	width: 100%;
+	padding: 6px 12px;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	color: var(--muted);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+#plan-toggle::before {
+	content: "\25B8";
+	flex: none;
+}
+#plan-toggle[aria-expanded="true"]::before {
+	content: "\25BE";
+}
+#plan-toggle:hover {
+	background: var(--selected);
+}
+#plan-count {
+	flex: none;
+}
+#plan-title {
+	overflow: hidden;
+	color: var(--text);
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+#outline {
+	margin: 0;
+	padding: 0 12px 8px 36px;
+	color: var(--muted);
+	min-height: 0;
+	overflow: auto;
 }
 #outline li.current {
 	color: var(--text);
