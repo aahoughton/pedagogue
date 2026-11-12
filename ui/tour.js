@@ -58,8 +58,7 @@ function apply(event) {
 			createdAt = event.createdAt;
 			selection = undefined;
 			lastDay = undefined;
-			$("title").textContent = state.title;
-			$("title").title = `${state.title}\n${state.cwd}`;
+			renderTitle();
 			$("cwd").textContent = state.cwd;
 			$("cwd").title = state.cwd;
 			$("transcript").replaceChildren();
@@ -73,6 +72,12 @@ function apply(event) {
 			setStatus(state.status, state.error);
 			setActivity(state.activity);
 			renderTimes();
+			break;
+		case "title":
+			state.title = event.title;
+			state.summary = event.summary;
+			renderTitle();
+			document.title = tabTitle(state.title, state.status);
 			break;
 		case "pane": {
 			const index = state.panes.findIndex((p) => p.id === event.pane.id);
@@ -161,6 +166,11 @@ fetch("/about")
 	});
 
 // Status and outline
+
+function renderTitle() {
+	$("title").textContent = state.title;
+	$("title").title = [state.summary, state.cwd].filter(Boolean).join("\n");
+}
 
 function setStatus(status, error) {
 	const labels = {

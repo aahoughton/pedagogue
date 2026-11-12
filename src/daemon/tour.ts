@@ -75,7 +75,13 @@ export type TourStatus = "working" | "waiting" | "closed";
 export interface TourState {
 	id: string;
 	cwd: string;
+	/**
+	 * The tutor's name for the tour once it has given one; until then, the
+	 * first line of the brief.
+	 */
 	title: string;
+	/** The tutor's one-sentence description. Unset until it names the tour. */
+	summary?: string;
 	status: TourStatus;
 	/** Set when the tour closed because of a failure. */
 	error?: string;
@@ -97,6 +103,7 @@ export type TourEvent =
 	| { type: "pane_closed"; id: string }
 	| { type: "focus"; id: string }
 	| { type: "outline"; outline: string[]; step?: number }
+	| { type: "title"; title: string; summary: string }
 	| { type: "item"; item: TranscriptItem }
 	/** Text to add to the end of a tutor item that is still being written. */
 	| { type: "item_delta"; id: string; text: string }
@@ -240,6 +247,16 @@ export class Tour {
 		};
 	}
 
+	/** When the tour started, as an ISO time. */
+	get createdAt(): string {
+		return this.#createdAt;
+	}
+
+	/** When the newest message in the conversation arrived; unset before the first. */
+	get lastMessageAt(): string | undefined {
+		return this.#state.transcript.findLast((item) => item.at)?.at;
+	}
+
 	get updatedAt(): string {
 		return this.#updatedAt;
 	}
@@ -251,6 +268,11 @@ export class Tour {
 
 	get id(): string {
 		return this.#state.id;
+	}
+
+	/** What the tour was asked to explain, as given when it started. */
+	get brief(): string {
+		return this.#brief;
 	}
 
 	get state(): TourState {
@@ -736,10 +758,21 @@ export class Tour {
 			}),
 			defineTool({
 				name: "set_outline",
-				description:
-					"Set or revise the plan for the tour, one short title per step, and mark the step now in progress. Call it once you know the plan and whenever you move to another step or the plan changes.",
+				description: `Set or revise the plan for the tour, one short title per step, and mark the step now in progress. Call it once you know the plan and whenever you move to another step or the plan changes. The first call must also name the tour with title and summary; the learner picks tours from a list by them. Later calls leave them out unless the tour has changed course.`,
 				input: {
 					steps: z.array(z.string()).min(1),
+					title: z
+						.string()
+						.optional()
+						.describe(
+							`Name of the tour in the tour list: two to five words, at most ${TITLE_MAX} characters, naming the specific subject (the mechanism, the change, the ticket) so it cannot be confused with another tour of the same codebase. No "tour of", "explain" or "how".`,
+						),
+					summary: z
+						.string()
+						.optional()
+						.describe(
+							`One sentence, at most ${SUMMARY_MAX} characters, shown when the learner hovers over the title: what the tour covers and in which repository, branch or pull request.`,
+						),
 					current: z
 						.number()
 						.int()
@@ -747,11 +780,28 @@ export class Tour {
 						.optional()
 						.describe("1-based number of the step in progress"),
 				},
-				handler: async ({ steps, current }) => {
+				handler: async ({ steps, current, title, summary }) => {
 					if (current !== undefined && current > steps.length) {
 						throw new Error(
 							`current is ${current} but there are ${steps.length} steps`,
 						);
+					}
+					const named = this.#state.summary !== undefined;
+					if (!named && (title === undefined || summary === undefined)) {
+						throw new Error(
+							"this tour has no name yet: call set_outline again with title and summary as well",
+						);
+					}
+					const newTitle = checkLength("title", title, TITLE_MAX);
+					const newSummary = checkLength("summary", summary, SUMMARY_MAX);
+					if (newTitle !== undefined || newSummary !== undefined) {
+						this.#state.title = newTitle ?? this.#state.title;
+						this.#state.summary = newSummary ?? this.#state.summary;
+						this.#emit({
+							type: "title",
+							title: this.#state.title,
+							summary: this.#state.summary as string,
+						});
 					}
 					this.#state.outline = steps;
 					this.#state.step = current === undefined ? undefined : current - 1;
@@ -789,6 +839,25 @@ export class Tour {
 type DistributiveOmit<T, K extends keyof T> = T extends unknown
 	? Omit<T, K>
 	: never;
+
+const TITLE_MAX = 40;
+const SUMMARY_MAX = 200;
+
+/** Trims a name the tutor gave and refuses one that is empty or too long. */
+function checkLength(
+	what: string,
+	text: string | undefined,
+	max: number,
+): string | undefined {
+	if (text === undefined) return undefined;
+	const trimmed = text.trim();
+	if (trimmed.length === 0 || trimmed.length > max) {
+		throw new Error(
+			`${what} is ${trimmed.length} characters; give 1 to ${max}`,
+		);
+	}
+	return trimmed;
+}
 
 function firstLine(text: string): string {
 	const line = text.trim().split("\n")[0] ?? "";

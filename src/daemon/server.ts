@@ -234,10 +234,20 @@ export function createApp(options: AppOptions): App {
 		if (pathname === "/tours" && method === "GET") {
 			return sendJson(response, 200, {
 				tours: [...tours.values()]
-					.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+					.sort((a, b) => lastActive(b).localeCompare(lastActive(a)))
 					.map((tour) => {
-						const { id, cwd, title, status } = tour.state;
-						return { id, cwd, title, status, updatedAt: tour.updatedAt };
+						const { id, cwd, title, summary, status } = tour.state;
+						return {
+							id,
+							cwd,
+							title,
+							// Shown on hover. A tour its tutor has not named yet is
+							// described by its brief.
+							summary: summary ?? tour.brief,
+							status,
+							createdAt: tour.createdAt,
+							lastMessageAt: tour.lastMessageAt,
+						};
 					}),
 			});
 		}
@@ -332,6 +342,11 @@ export async function listen(
 		server.listen(port, host, done);
 	});
 	return { server, port: (server.address() as AddressInfo).port };
+}
+
+/** When a learner or tutor last said something in a tour, or when it started. */
+function lastActive(tour: Tour): string {
+	return tour.lastMessageAt ?? tour.createdAt;
 }
 
 function hostname(hostHeader: string | undefined): string | undefined {

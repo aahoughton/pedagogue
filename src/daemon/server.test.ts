@@ -68,9 +68,14 @@ test("starting a tour returns a link on the public URL and lists the tour", asyn
 	assert.deepEqual(driver.sessions.at(-1)?.received, ["Explain a.txt"]);
 
 	const list = (await (await fetch(`${base}/tours`)).json()) as {
-		tours: Array<{ id: string; status: string }>;
+		tours: Array<Record<string, string | undefined>>;
 	};
-	assert.ok(list.tours.some((t) => t.id === body.id && t.status === "working"));
+	const listed = list.tours.find((t) => t.id === body.id);
+	assert.equal(listed?.status, "working");
+	assert.equal(listed?.title, "Explain a.txt");
+	assert.equal(listed?.summary, "Explain a.txt");
+	assert.equal(listed?.createdAt, app.tours.get(body.id)?.createdAt);
+	assert.equal(listed?.lastMessageAt, undefined);
 	assert.equal((await fetch(`${base}/tours/${body.id}`)).status, 200);
 });
 
@@ -311,4 +316,27 @@ test("tours come back after a restart, dormant, and wake on input", async () => 
 	);
 	assert.deepEqual(secondDriver.sessions[0]?.received, ["and then?"]);
 	socket.close();
+});
+
+test("the list shows the tutor's name for a tour and orders by the last message", async () => {
+	const older = await startTour();
+	const newer = await startTour();
+	await older.agent.call("set_outline", {
+		steps: ["a"],
+		title: "Line counting",
+		summary: "How a.txt is counted.",
+	});
+	await older.agent.emit({ type: "text", text: "Hello." });
+	const { tours } = (await (await fetch(`${base}/tours`)).json()) as {
+		tours: Array<Record<string, string | undefined>>;
+	};
+	const first = tours.find((t) => t.id === older.id);
+	assert.equal(first?.title, "Line counting");
+	assert.equal(first?.summary, "How a.txt is counted.");
+	assert.equal(first?.lastMessageAt, app.tours.get(older.id)?.lastMessageAt);
+	assert.ok(first?.lastMessageAt);
+	assert.ok(
+		tours.findIndex((t) => t.id === older.id) <
+			tours.findIndex((t) => t.id === newer.id),
+	);
 });

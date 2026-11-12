@@ -1,4 +1,4 @@
-import { buildLabel } from "./lines.js";
+import { ago, buildLabel } from "./lines.js";
 
 const list = document.getElementById("tours");
 const form = document.getElementById("start");
@@ -9,6 +9,11 @@ const STATUS = {
 	waiting: "your turn",
 	closed: "ended",
 };
+
+const DATE_TIME = new Intl.DateTimeFormat(undefined, {
+	dateStyle: "medium",
+	timeStyle: "short",
+});
 
 const TRASH_ICON =
 	'<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.6 9.5h6.8L12 4M6.5 6.5v4.5M9.5 6.5v4.5"/></svg>';
@@ -41,14 +46,22 @@ async function refresh() {
 			const link = document.createElement("a");
 			link.href = `/tours/${tour.id}`;
 			link.textContent = tour.title;
+			link.title = tour.summary;
 			const meta = document.createElement("div");
 			meta.className = "meta";
-			const when = new Date(tour.updatedAt).toLocaleString(undefined, {
-				dateStyle: "medium",
-				timeStyle: "short",
-			});
-			meta.textContent = `${STATUS[tour.status]} \u00b7 ${when} \u00b7 ${tour.cwd}`;
-			entry.append(link, meta);
+			const parts = [
+				STATUS[tour.status],
+				`started ${DATE_TIME.format(new Date(tour.createdAt))}`,
+			];
+			if (tour.lastMessageAt) {
+				parts.push(`last message ${ago(tour.lastMessageAt, Date.now())}`);
+				meta.title = `Last message ${DATE_TIME.format(new Date(tour.lastMessageAt))}`;
+			}
+			meta.textContent = parts.join(" \u00b7 ");
+			const cwd = document.createElement("div");
+			cwd.className = "meta";
+			cwd.textContent = tour.cwd;
+			entry.append(link, meta, cwd);
 			const remove = document.createElement("button");
 			remove.type = "button";
 			remove.className = "delete";

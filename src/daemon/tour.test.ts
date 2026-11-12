@@ -159,9 +159,47 @@ test("a quiz is answered once and the answer goes to the tutor", async () => {
 	);
 });
 
+const NAME = { title: "Line counting", summary: "How a.txt is counted." };
+
+test("the tutor names the tour with its first outline", async () => {
+	const { tour, agent } = await openTour();
+	const brief = tour.state.title;
+	const events: TourEvent[] = [];
+	tour.subscribe((event) => events.push(event));
+	await assert.rejects(
+		agent.call("set_outline", { steps: ["a"] }),
+		/no name yet: call set_outline again with title and summary/,
+	);
+	await assert.rejects(
+		agent.call("set_outline", {
+			steps: ["a"],
+			title: "x".repeat(41),
+			summary: "s",
+		}),
+		/title is 41 characters; give 1 to 40/,
+	);
+	assert.equal(tour.state.title, brief);
+	assert.deepEqual(tour.state.outline, []);
+
+	await agent.call("set_outline", { steps: ["a"], ...NAME });
+	assert.equal(tour.state.title, "Line counting");
+	assert.equal(tour.state.summary, "How a.txt is counted.");
+	assert.deepEqual(
+		events.filter((event) => event.type === "title"),
+		[{ type: "title", ...NAME }],
+	);
+
+	// Later calls keep the name unless they give a new one.
+	await agent.call("set_outline", { steps: ["a", "b"] });
+	assert.equal(tour.state.title, "Line counting");
+	await agent.call("set_outline", { steps: ["a"], title: " Word counting " });
+	assert.equal(tour.state.title, "Word counting");
+	assert.equal(tour.state.summary, "How a.txt is counted.");
+});
+
 test("set_outline tracks the current step and rejects one past the end", async () => {
 	const { tour, agent } = await openTour();
-	await agent.call("set_outline", { steps: ["a", "b"], current: 2 });
+	await agent.call("set_outline", { steps: ["a", "b"], current: 2, ...NAME });
 	assert.deepEqual(tour.state.outline, ["a", "b"]);
 	assert.equal(tour.state.step, 1);
 	await assert.rejects(
@@ -430,7 +468,11 @@ test("a restored tour is dormant and wakes its tutor with the saved conversation
 
 test("when the conversation cannot be restored a fresh tutor gets a recap and the message", async () => {
 	const { tour, agent } = await openTour();
-	await agent.call("set_outline", { steps: ["One", "Two"], current: 2 });
+	await agent.call("set_outline", {
+		steps: ["One", "Two"],
+		current: 2,
+		...NAME,
+	});
 	await agent.call("show_code", {
 		path: "a.txt",
 		highlights: [{ start: 2, end: 3 }],
@@ -543,6 +585,7 @@ test("every change asks for a save, and closing ends the tour for good", async (
 	const before = saves;
 	await (driver.sessions[0] as FakeSession).call("set_outline", {
 		steps: ["a"],
+		...NAME,
 	});
 	assert.ok(saves > before);
 	tour.close();
