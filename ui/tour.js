@@ -185,7 +185,8 @@ let faviconTimer;
 /**
  * Shows the status in the tab icon, stepping its frames while the tutor
  * works. Browsers slow timers in a background tab, so the animation runs
- * slower there; a change of status still shows at once.
+ * slower there; a change of status still shows at once. Safari ignores a
+ * change of icon after load and keeps the one the page linked.
  */
 function setFavicon(status) {
 	clearInterval(faviconTimer);

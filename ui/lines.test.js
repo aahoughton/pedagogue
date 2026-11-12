@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
 	ago,
@@ -149,4 +150,10 @@ test("faviconHref is an SVG data URL that decodes to the icon", () => {
 		decodeURIComponent(href.slice(prefix.length)),
 		faviconSvg("working", 1),
 	);
+});
+
+// Safari shows only the icon a page loads with, so the pages link a file.
+test("the favicon file the pages load with is the waiting icon", () => {
+	const file = readFileSync(new URL("./favicon.svg", import.meta.url), "utf8");
+	assert.equal(file.trim(), faviconSvg("waiting"));
 });

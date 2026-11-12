@@ -168,7 +168,7 @@ export function faviconSvg(status, frame = 0) {
 			return `<circle cx="${cx}" cy="${cy}" r="1.35" fill="#fff" opacity="${opacity}"/>`;
 		})
 		.join("");
-	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="${fill}" d="M4 1h8a3 3 0 0 1 3 3v5.5a3 3 0 0 1-3 3H8l-4 3.2v-3.2a3 3 0 0 1-3-3V4a3 3 0 0 1 3-3z"/>${dots}</svg>`;
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><title>pedagogue</title><path fill="${fill}" d="M4 1h8a3 3 0 0 1 3 3v5.5a3 3 0 0 1-3 3H8l-4 3.2v-3.2a3 3 0 0 1-3-3V4a3 3 0 0 1 3-3z"/>${dots}</svg>`;
 }
 
 /** The favicon as a URL for a link element's href. */

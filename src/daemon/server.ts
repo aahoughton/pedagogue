@@ -30,6 +30,10 @@ const ASSETS: Record<string, { file: string; type: string }> = {
 		type: "text/javascript",
 	},
 	"/assets/style.css": { file: join(UI_DIR, "style.css"), type: "text/css" },
+	"/assets/favicon.svg": {
+		file: join(UI_DIR, "favicon.svg"),
+		type: "image/svg+xml",
+	},
 	"/vendor/marked.js": {
 		file: join(ROOT, "node_modules/marked/lib/marked.esm.js"),
 		type: "text/javascript",

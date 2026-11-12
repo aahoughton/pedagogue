@@ -189,6 +189,9 @@ test("deleting a tour closes it and its agent", async () => {
 
 test("only the listed assets are served", async () => {
 	assert.equal((await fetch(`${base}/assets/tour.js`)).status, 200);
+	const icon = await fetch(`${base}/assets/favicon.svg`);
+	assert.equal(icon.status, 200);
+	assert.match(icon.headers.get("content-type") ?? "", /^image\/svg\+xml/);
 	assert.equal((await fetch(`${base}/vendor/marked.js`)).status, 200);
 	assert.equal((await fetch(`${base}/assets/../package.json`)).status, 404);
 	assert.equal((await fetch(`${base}/package.json`)).status, 404);
