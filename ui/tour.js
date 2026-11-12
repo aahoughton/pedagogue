@@ -696,7 +696,6 @@ $("resize").addEventListener("pointerdown", (event) => {
 	event.preventDefault();
 	drag = { y: event.clientY, height: $("input").offsetHeight };
 	$("resize").setPointerCapture(event.pointerId);
-	$("resize").classList.add("dragging");
 });
 $("resize").addEventListener("pointermove", (event) => {
 	if (drag) drag.last = setInputHeight(drag.height + drag.y - event.clientY);
@@ -705,7 +704,6 @@ function endDrag() {
 	if (!drag) return;
 	saveInputHeight(drag.last);
 	drag = undefined;
-	$("resize").classList.remove("dragging");
 }
 $("resize").addEventListener("pointerup", endDrag);
 $("resize").addEventListener("pointercancel", endDrag);

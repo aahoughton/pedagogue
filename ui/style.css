@@ -523,17 +523,24 @@ body.tour #titlebar {
 	top: -4px;
 	left: 0;
 	right: 0;
-	height: 7px;
+	height: 12px;
 	margin: 0;
 	border: 0;
 	cursor: ns-resize;
 	touch-action: none;
+	/* Three dots just under the border mark it as a handle. */
+	--dot: radial-gradient(circle, var(--dot-color) 1.5px, transparent 2px);
+	--dot-color: var(--muted);
+	background-image: var(--dot), var(--dot), var(--dot);
+	background-size: 5px 5px;
+	background-position:
+		calc(50% - 7px) 6px,
+		50% 6px,
+		calc(50% + 7px) 6px;
+	background-repeat: no-repeat;
 }
-#resize:hover,
-#resize:focus-visible,
-#resize.dragging {
-	background: var(--accent);
-	opacity: 0.5;
+#resize:focus-visible {
+	--dot-color: var(--accent);
 	outline: 0;
 }
 #selection {
