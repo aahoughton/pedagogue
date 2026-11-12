@@ -362,14 +362,13 @@ body.tour #titlebar {
 .item.learner {
 	margin-left: 32px;
 	padding: 8px 12px;
-	background: var(--panel);
+	background: var(--selected);
 	border-radius: 10px;
 	white-space: pre-wrap;
 }
 .item.learner .sel {
 	display: block;
 	font: 12px var(--mono);
-	color: var(--muted);
 	margin-bottom: 2px;
 }
 .item.tutor > :first-child {
@@ -419,6 +418,11 @@ body.tour #titlebar {
 }
 .item.learner .at {
 	text-align: right;
+}
+/* --muted is too faint on the tinted bubble. */
+.item.learner .sel,
+.item.learner .at {
+	color: color-mix(in srgb, var(--text) 70%, transparent);
 }
 .item.tutor > :has(+ .at) {
 	margin-bottom: 0;
