@@ -5,6 +5,9 @@ import {
 	buildLabel,
 	clampInputHeight,
 	compressLines,
+	FAVICON_FRAMES,
+	faviconHref,
+	faviconSvg,
 	languageFor,
 	paneForPath,
 	parseLineLink,
@@ -120,4 +123,30 @@ test("clampInputHeight prefers the minimum in a panel too short for both", () =>
 test("clampInputHeight rejects a height that is not a number", () => {
 	assert.equal(clampInputHeight(Number.NaN, 900), undefined);
 	assert.equal(clampInputHeight(Number("tall"), 900), undefined);
+});
+
+test("faviconSvg moves one dot per frame while the tutor works", () => {
+	const frames = [0, 1, 2].map((frame) => faviconSvg("working", frame));
+	assert.equal(new Set(frames).size, FAVICON_FRAMES);
+	assert.equal(faviconSvg("working", FAVICON_FRAMES), frames[0]);
+});
+
+test("faviconSvg is the same still image on every frame while waiting", () => {
+	assert.equal(faviconSvg("waiting", 0), faviconSvg("waiting", 2));
+	assert.notEqual(faviconSvg("waiting"), faviconSvg("working"));
+});
+
+test("faviconSvg greys the bubble when the tour is not live", () => {
+	assert.equal(faviconSvg("closed"), faviconSvg("reconnecting"));
+	assert.notEqual(faviconSvg("closed"), faviconSvg("waiting"));
+});
+
+test("faviconHref is an SVG data URL that decodes to the icon", () => {
+	const href = faviconHref("working", 1);
+	const prefix = "data:image/svg+xml,";
+	assert.ok(href.startsWith(prefix));
+	assert.equal(
+		decodeURIComponent(href.slice(prefix.length)),
+		faviconSvg("working", 1),
+	);
 });

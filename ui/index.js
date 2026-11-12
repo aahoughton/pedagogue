@@ -1,4 +1,6 @@
-import { buildLabel } from "./lines.js";
+import { buildLabel, faviconHref } from "./lines.js";
+
+document.getElementById("favicon").href = faviconHref("waiting");
 
 const list = document.getElementById("tours");
 const form = document.getElementById("start");

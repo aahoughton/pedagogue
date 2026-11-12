@@ -147,3 +147,31 @@ export function clampInputHeight(height, sideHeight) {
 	const max = Math.max(MIN_INPUT_HEIGHT, Math.floor(sideHeight / 2));
 	return Math.min(max, Math.max(MIN_INPUT_HEIGHT, Math.round(height)));
 }
+
+/** Frames in one cycle of the favicon shown while the tutor works. */
+export const FAVICON_FRAMES = 3;
+
+/**
+ * The tab icon as SVG source: a speech bubble holding three dots. While the
+ * tutor works, the dot numbered `frame` is raised and the others dimmed, so
+ * stepping `frame` animates it. Waiting shows the three dots at rest. Any
+ * other status (ended, reconnecting) greys the bubble.
+ */
+export function faviconSvg(status, frame = 0) {
+	const working = status === "working";
+	const fill = working || status === "waiting" ? "#2f6feb" : "#8a93a3";
+	const dots = [4.5, 8, 11.5]
+		.map((cx, index) => {
+			const active = working && index === frame % FAVICON_FRAMES;
+			const cy = active ? 5.4 : 6.9;
+			const opacity = working && !active ? 0.5 : 1;
+			return `<circle cx="${cx}" cy="${cy}" r="1.35" fill="#fff" opacity="${opacity}"/>`;
+		})
+		.join("");
+	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="${fill}" d="M4 1h8a3 3 0 0 1 3 3v5.5a3 3 0 0 1-3 3H8l-4 3.2v-3.2a3 3 0 0 1-3-3V4a3 3 0 0 1 3-3z"/>${dots}</svg>`;
+}
+
+/** The favicon as a URL for a link element's href. */
+export function faviconHref(status, frame = 0) {
+	return `data:image/svg+xml,${encodeURIComponent(faviconSvg(status, frame))}`;
+}

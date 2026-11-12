@@ -6,6 +6,8 @@ import {
 	buildLabel,
 	clampInputHeight,
 	compressLines,
+	FAVICON_FRAMES,
+	faviconHref,
 	languageFor,
 	paneForPath,
 	parseLineLink,
@@ -175,6 +177,28 @@ function setStatus(status, error) {
 	const closed = status === "closed";
 	$("input").disabled = closed;
 	$("send").disabled = closed;
+	setFavicon(status);
+}
+
+let faviconTimer;
+
+/**
+ * Shows the status in the tab icon, stepping its frames while the tutor
+ * works. Browsers slow timers in a background tab, so the animation runs
+ * slower there; a change of status still shows at once.
+ */
+function setFavicon(status) {
+	clearInterval(faviconTimer);
+	const show = (frame) => {
+		$("favicon").href = faviconHref(status, frame);
+	};
+	show(0);
+	if (status !== "working") return;
+	let frame = 0;
+	faviconTimer = setInterval(() => {
+		frame = (frame + 1) % FAVICON_FRAMES;
+		show(frame);
+	}, 400);
 }
 
 /** Says what the tutor is doing, next to the dots under the conversation. */
