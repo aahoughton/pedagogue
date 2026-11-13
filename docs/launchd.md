@@ -10,7 +10,7 @@ checkout's path and your home directory filled in, then loads it.
 
 ```sh
 REPO=$(pwd)
-MISE=$(command -v mise)
+MISE_DIR=$(dirname "$(command -v mise)")
 PLIST=~/Library/LaunchAgents/dev.pedagogue.daemon.plist
 
 cat > "$PLIST" <<PLIST_END
@@ -22,14 +22,13 @@ cat > "$PLIST" <<PLIST_END
   <string>dev.pedagogue.daemon</string>
   <key>ProgramArguments</key>
   <array>
-    <string>$MISE</string>
-    <string>exec</string>
-    <string>--</string>
-    <string>node</string>
-    <string>src/daemon/main.ts</string>
+    <string>$REPO/bin/pedagogue-daemon</string>
   </array>
-  <key>WorkingDirectory</key>
-  <string>$REPO</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>$MISE_DIR:/usr/bin:/bin</string>
+  </dict>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
@@ -47,8 +46,10 @@ PLIST_END
 launchctl bootstrap gui/$(id -u) "$PLIST"
 ```
 
-`mise exec` runs the Node version that `mise.toml` pins, without depending on
-your shell's `PATH`, which launchd does not have.
+The agent runs `bin/pedagogue-daemon`, which starts the daemon with
+`mise exec` so that it gets the Node version `mise.toml` pins. launchd does not
+have your shell's `PATH`, only the system directories, so the agent sets a
+`PATH` that includes the directory where `mise` is installed.
 
 ## Check
 
@@ -73,6 +74,15 @@ rm ~/Library/LaunchAgents/dev.pedagogue.daemon.plist
 ```
 
 ## Things to know
+
+- macOS names a launch agent after the program it runs. System Settings >
+  General > Login Items & Extensions and the "can run in the background"
+  notice show this one as `pedagogue-daemon`. Switching it off there stops the
+  daemon from starting at login.
+- An agent installed before `bin/pedagogue-daemon` existed runs `mise`
+  directly and is listed as `mise`. Run Remove and then Install to replace it.
+- If `mise` moves (for example after reinstalling it another way), the daemon
+  exits with "mise not found on PATH". Run Remove and then Install again.
 
 - If `PEDAGOGUE_HOST` includes a tailnet address and Tailscale is not up yet at
   login, the daemon exits with "cannot listen" and launchd starts it again

@@ -12,6 +12,7 @@ code without breaking its conventions.
   `permissions.ts` decides every tutor tool call.
 - `ui/` the browser code: plain ES modules and CSS, served as they are.
 - `src/cli/`, `bin/walkthrough` the launcher.
+- `bin/pedagogue-daemon` the entry point a service manager runs (docs/launchd.md).
 - `skills/guided-explanation/` the skill that tells an agent how to start a walkthrough.
 
 ## Commands

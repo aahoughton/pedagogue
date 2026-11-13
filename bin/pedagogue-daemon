@@ -1,0 +1,11 @@
+#!/bin/sh
+# Starts the daemon from this checkout with the Node that mise.toml pins.
+# A service manager runs this file so that it lists the job under this name.
+# mise must be on PATH; launchd's default PATH has only the system
+# directories, so the launch agent sets one (see docs/launchd.md).
+if ! command -v mise >/dev/null 2>&1; then
+	echo "pedagogue: mise not found on PATH ($PATH)" >&2
+	exit 2
+fi
+cd "$(dirname "$0")/.." || exit 2
+exec mise exec -- node src/daemon/main.ts
